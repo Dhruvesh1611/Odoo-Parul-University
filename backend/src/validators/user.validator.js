@@ -1,6 +1,6 @@
 const { z } = require('zod');
 
-const userRoleSchema = z.enum(['EMPLOYEE', 'KITCHEN']);
+const userRoleSchema = z.enum(['ADMIN', 'EMPLOYEE', 'KITCHEN']);
 
 const createUserSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120),

@@ -50,9 +50,17 @@ const touchLastLogin = (id) =>
     include: userSelection,
   });
 
+const updatePassword = (id, password) =>
+  prisma.user.update({
+    where: { id },
+    data: { password },
+    include: userSelection,
+  });
+
 module.exports = {
   findUserByEmail,
   findUserById,
   createAdminWithShop,
   touchLastLogin,
+  updatePassword,
 };

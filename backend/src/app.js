@@ -64,7 +64,8 @@ app.use('/api/payments', require('./routes/payment.routes'));
 
 // ─── Health Check ───────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date(), uptime: process.uptime() });
+  const timestampIST = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  res.json({ status: 'ok', timestamp: timestampIST, uptime: process.uptime() });
 });
 
 // ─── 404 Handler ────────────────────────────────────────────

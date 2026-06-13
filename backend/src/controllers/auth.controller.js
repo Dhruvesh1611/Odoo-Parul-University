@@ -37,6 +37,24 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.forgotPassword = async (req, res) => {
+  try {
+    const result = await authService.requestPasswordReset(req.body);
+    res.json(result);
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const result = await authService.resetPassword(req.body);
+    res.json(result);
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
 exports.me = async (req, res) => {
   try {
     const userId = req.user?.userId || req.user?.id;

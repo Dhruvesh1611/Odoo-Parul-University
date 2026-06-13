@@ -44,7 +44,7 @@ const sendOrderReceipt = async (req, res) => {
 
         // HTML Email content
         const mailOptions = {
-            from: process.env.EMAIL_USER || 'noreply@odoocafe.com',
+            from: 'Crush Coffee',
             to: recipientEmail,
             subject: `Receipt for Order ${order.orderNumber} - Odoo Cafe`,
             html: `
@@ -91,7 +91,7 @@ const sendOrderReceipt = async (req, res) => {
                         </table>
                         
                         <p style="text-align: center; color: #777; font-size: 12px; margin-top: 30px;">
-                            ${new Date().toLocaleString()}<br>
+                            ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}<br>
                             Served by ${order.user ? order.user.name : 'Staff'}
                         </p>
                     </div>

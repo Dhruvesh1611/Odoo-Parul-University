@@ -92,18 +92,31 @@ async function createUser(actor, payload) {
   });
 
   const shop = await findShopById(actor.shopId);
-  await sendUserCredentialsEmail({
-    to: user.email,
-    name: user.name,
-    email: user.email,
-    password: plainPassword,
-    role: user.role,
-    shopName: shop?.name || 'your shop',
-  });
+  let emailDelivery = { sent: false, mocked: false };
+  try {
+    emailDelivery = await sendUserCredentialsEmail({
+      to: user.email,
+      name: user.name,
+      email: user.email,
+      password: plainPassword,
+      role: user.role,
+      shopName: shop?.name || 'your shop',
+    });
+  } catch (error) {
+    emailDelivery = {
+      sent: false,
+      mocked: false,
+      error: error.message,
+    };
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[MAIL] Unable to send staff credential email:', error.message);
+    }
+  }
 
   return {
     user: toPublicUser(user),
     temporaryPassword: process.env.NODE_ENV === 'production' ? undefined : plainPassword,
+    emailDelivery,
   };
 }
 

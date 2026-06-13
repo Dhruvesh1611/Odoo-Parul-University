@@ -97,6 +97,48 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const requestPasswordReset = useCallback(async (email) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await axios.post(`${API_URL}/forgot-password`, { email });
+      setIsLoading(false);
+      return response.data.message;
+    } catch (err) {
+      setIsLoading(false);
+      const errorMsg = err.response?.data?.error;
+      if (typeof errorMsg === 'string') {
+        setError(errorMsg);
+      } else if (Array.isArray(errorMsg)) {
+        setError(errorMsg.map((e) => e.message).join(', '));
+      } else {
+        setError('Unable to send reset link');
+      }
+      return null;
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (token, password) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await axios.post(`${API_URL}/reset-password`, { token, password });
+      setIsLoading(false);
+      return response.data.message;
+    } catch (err) {
+      setIsLoading(false);
+      const errorMsg = err.response?.data?.error;
+      if (typeof errorMsg === 'string') {
+        setError(errorMsg);
+      } else if (Array.isArray(errorMsg)) {
+        setError(errorMsg.map((e) => e.message).join(', '));
+      } else {
+        setError('Unable to reset password');
+      }
+      return null;
+    }
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
@@ -104,7 +146,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isInitializing, error, login, signup, logout, setError }}>
+    <AuthContext.Provider value={{ user, token, isLoading, isInitializing, error, login, signup, logout, setError, requestPasswordReset, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

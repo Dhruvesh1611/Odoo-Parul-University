@@ -1,12 +1,20 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { registerSchema, loginSchema } = require('../validators/auth.validator');
+const {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} = require('../validators/auth.validator');
 const authRepository = require('../repositories/auth.repository');
 const { findById: findShopById } = require('../repositories/shop.repository');
 const { slugify } = require('../utils/slugify');
+const { sendPasswordResetEmail } = require('./mailer.service');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+const RESET_TOKEN_TTL = '1h';
+const FRONTEND_URL = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 function createError(statusCode, message) {
   const error = new Error(message);
@@ -126,10 +134,75 @@ async function getShopContext(shopId) {
   return findShopById(shopId);
 }
 
+function buildResetLink(token) {
+  return `${FRONTEND_URL}/reset-password?token=${encodeURIComponent(token)}`;
+}
+
+async function requestPasswordReset(payload) {
+  const data = forgotPasswordSchema.parse(payload);
+  const user = await authRepository.findUserByEmail(data.email);
+
+  if (!user || !user.isActive) {
+    return {
+      message: 'If the email exists, a password reset link has been sent.',
+    };
+  }
+
+  const token = jwt.sign(
+    {
+      userId: user.id,
+      email: user.email,
+      purpose: 'password-reset',
+    },
+    JWT_SECRET,
+    { expiresIn: RESET_TOKEN_TTL }
+  );
+
+  await sendPasswordResetEmail({
+    to: user.email,
+    name: user.name,
+    resetLink: buildResetLink(token),
+    shopName: user.shop?.name || 'Odoo Cafe',
+  });
+
+  return {
+    message: 'If the email exists, a password reset link has been sent.',
+  };
+}
+
+async function resetPassword(payload) {
+  const data = resetPasswordSchema.parse(payload);
+
+  let decoded;
+  try {
+    decoded = jwt.verify(data.token, JWT_SECRET);
+  } catch (error) {
+    throw createError(400, 'Reset link is invalid or expired');
+  }
+
+  if (decoded.purpose !== 'password-reset' || !decoded.userId || !decoded.email) {
+    throw createError(400, 'Reset link is invalid or expired');
+  }
+
+  const user = await authRepository.findUserById(decoded.userId);
+  if (!user || !user.isActive || user.email !== decoded.email) {
+    throw createError(400, 'Reset link is invalid or expired');
+  }
+
+  const hashedPassword = await bcrypt.hash(data.password, 10);
+  await authRepository.updatePassword(user.id, hashedPassword);
+
+  return {
+    message: 'Password updated successfully. Please sign in with your new password.',
+  };
+}
+
 module.exports = {
   registerAdmin,
   loginUser,
   getCurrentUser,
   getShopContext,
+  requestPasswordReset,
+  resetPassword,
   toPublicUser,
 };
