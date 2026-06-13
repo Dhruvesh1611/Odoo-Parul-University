@@ -7,14 +7,14 @@ import { useCartStore } from "@/stores/cart-store";
 import CustomerModal from "@/components/pos/CustomerModal";
 
 export default function CartPage() {
-  const { 
-    cart, 
-    addItem, 
-    decreaseQuantity, 
-    removeItem, 
+  const {
+    cart,
+    addItem,
+    decreaseQuantity,
+    removeItem,
     updateItemNotes,
-    clearCart, 
-    customer, 
+    clearCart,
+    customer,
     setCustomer,
     orderId,
     coupon,
@@ -28,8 +28,6 @@ export default function CartPage() {
   const [couponSuccess, setCouponSuccess] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
-  const [availableTables, setAvailableTables] = useState([]);
-
   useEffect(() => {
     const tableData = localStorage.getItem('selectedTable');
     if (tableData) {
@@ -39,25 +37,7 @@ export default function CartPage() {
       setCouponInput(coupon.code);
       setCouponSuccess(`Applied: ${coupon.code}`);
     }
-    fetchAvailableTables();
   }, [coupon]);
-
-  const fetchAvailableTables = async () => {
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/floors`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const floorsData = await res.json();
-        const tables = floorsData.flatMap(f => f.tables || []).filter(t => t.status === 'AVAILABLE');
-        setAvailableTables(tables);
-      }
-    } catch (error) {
-      console.error("Failed to load available tables:", error);
-    }
-  };
 
   const getCartSubtotal = () => {
     return cart.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
@@ -91,7 +71,7 @@ export default function CartPage() {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
       const token = localStorage.getItem('token');
-      
+
       const response = await fetch(`${API_URL}/coupons/validate/${couponInput.trim()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -127,7 +107,7 @@ export default function CartPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
       const token = localStorage.getItem('token');
       const session = JSON.parse(localStorage.getItem('activeSession') || '{}');
-      
+
       const payload = {
         id: orderId || undefined,
         tableId: selectedTable?.id || null,
@@ -172,7 +152,7 @@ export default function CartPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
       const token = localStorage.getItem('token');
       const session = JSON.parse(localStorage.getItem('activeSession') || '{}');
-      
+
       const payload = {
         id: orderId || undefined,
         tableId: selectedTable?.id || null,
@@ -239,7 +219,7 @@ export default function CartPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#FBFBF2]">
-      <CustomerModal 
+      <CustomerModal
         isOpen={isCustomerModalOpen}
         onClose={() => setIsCustomerModalOpen(false)}
         onSave={setCustomer}
@@ -256,9 +236,9 @@ export default function CartPage() {
             <ArrowLeft className="h-5 w-5" />
             <span className="font-semibold">Back to Products</span>
           </button>
-          
+
           <h1 className="text-3xl font-black text-[#1A4D2E]">Shopping Cart</h1>
-          
+
           <button
             onClick={() => clearCart()}
             className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors font-semibold flex items-center gap-2"
@@ -386,7 +366,7 @@ export default function CartPage() {
                 <Tag className="h-5 w-5 text-[#1A4D2E]" />
                 Promo / Coupon
               </h3>
-              
+
               {!coupon ? (
                 <div className="flex gap-2">
                   <input
@@ -423,7 +403,7 @@ export default function CartPage() {
             {/* Order Summary */}
             <div className="bg-white rounded-[2rem] p-6 shadow-md border border-[#E8F5E9] space-y-4">
               <h3 className="font-bold text-[#1A4D2E] text-lg mb-4">Order Summary</h3>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between text-[#5F6F65]">
                   <span>Items ({cart.length})</span>
@@ -436,14 +416,14 @@ export default function CartPage() {
                     <span>-₹{discount.toFixed(2)}</span>
                   </div>
                 )}
-                
+
                 {tax > 0 && (
                   <div className="flex justify-between text-[#5F6F65]">
                     <span>Tax</span>
                     <span className="font-semibold">₹{tax.toFixed(2)}</span>
                   </div>
                 )}
-                
+
                 <div className="border-t border-[#E8F5E9] pt-3">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-bold text-[#1A4D2E]">Total</span>
@@ -474,47 +454,13 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* Table Selector */}
-            <div className="bg-white rounded-[2rem] p-6 shadow-md border border-[#E8F5E9] space-y-4">
-              <h3 className="font-bold text-[#1A4D2E] text-base uppercase tracking-wider border-b pb-1">Table Association</h3>
-              {selectedTable ? (
-                <div className="bg-[#E8F5E9] rounded-[1.5rem] p-4 border border-[#4ADE80]/30 text-center">
-                  <p className="text-xs text-[#5F6F65] uppercase tracking-wider font-bold">Selected Table</p>
-                  <p className="font-black text-[#1A4D2E] text-xl mt-1">{selectedTable.name}</p>
-                  <button
-                    onClick={() => {
-                      localStorage.removeItem('selectedTable');
-                      setSelectedTable(null);
-                      fetchAvailableTables();
-                    }}
-                    className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors uppercase tracking-wider block mx-auto mt-3 border border-red-200 hover:border-red-600 px-3 py-1 rounded-full bg-white"
-                  >
-                    Change Table
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-[#5F6F65] font-bold uppercase tracking-wider">Select Empty Table</p>
-                  <select
-                    onChange={(e) => {
-                      const tableId = e.target.value;
-                      if (!tableId) return;
-                      const table = availableTables.find(t => t.id === tableId);
-                      if (table) {
-                        localStorage.setItem('selectedTable', JSON.stringify(table));
-                        setSelectedTable(table);
-                      }
-                    }}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#1A4D2E] focus:outline-none bg-white font-semibold text-sm"
-                  >
-                    <option value="">Choose empty table...</option>
-                    {availableTables.map(t => (
-                      <option key={t.id} value={t.id}>{t.name} ({t.seats} seats)</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
+            {/* Table Info */}
+            {selectedTable && (
+              <div className="bg-[#E8F5E9] rounded-[2rem] p-4 border border-[#4ADE80]/30 text-center">
+                <p className="text-xs text-[#5F6F65] uppercase tracking-wider font-bold">Selected Table</p>
+                <p className="font-black text-[#1A4D2E] text-xl mt-1">{selectedTable.name}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

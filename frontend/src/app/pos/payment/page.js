@@ -14,6 +14,7 @@ export default function POSPaymentPage() {
   const [processing, setProcessing] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [whatsappNumber, setWhatsappNumber] = useState("");
 
   useEffect(() => {
     // Only check for valid session or redirect
@@ -44,6 +45,9 @@ export default function POSPaymentPage() {
       if (response.ok) {
         const data = await response.json();
         setOrder(data);
+        if (data.customerMobile) {
+          setWhatsappNumber(data.customerMobile);
+        }
       } else {
         alert("Failed to load order details");
         window.location.href = '/pos/terminal';
@@ -94,14 +98,9 @@ export default function POSPaymentPage() {
       // Clear checkout states
       clearCart();
       localStorage.removeItem('payingOrderId');
-      localStorage.removeItem('selectedTable');
       
       setProcessing(false);
       setOrderComplete(true);
-
-      setTimeout(() => {
-        window.location.href = '/pos/tables';
-      }, 2000);
     } catch (e) {
       console.error(e);
       alert(e.message);
@@ -167,12 +166,8 @@ export default function POSPaymentPage() {
             if (verifyRes.ok) {
               clearCart();
               localStorage.removeItem('payingOrderId');
-              localStorage.removeItem('selectedTable');
               setProcessing(false);
               setOrderComplete(true);
-              setTimeout(() => {
-                window.location.href = '/pos/tables';
-              }, 2000);
             } else {
               const verifyErr = await verifyRes.json();
               throw new Error(verifyErr.error || "Payment verification failed");
@@ -206,6 +201,29 @@ export default function POSPaymentPage() {
     }
   };
 
+  const handleShareWhatsApp = () => {
+    if (!order) return;
+    const subtotal = order.items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+    const tax = Number(order.taxAmount) || 0;
+    const discount = Number(order.discountAmount) || 0;
+    const total = Number(order.totalAmount);
+    const tableName = order.table ? order.table.name : 'Takeaway';
+    const paymentMethodDisplay = order.payments && order.payments.length > 0 ? order.payments.map(p => p.method).join(', ') : paymentMethod;
+
+    const itemsText = order.items.map(item => 
+      `- ${item.quantity}x ${item.productName}${item.variantName ? ` (${item.variantName})` : ''} - ₹${(Number(item.price) * item.quantity).toFixed(2)}`
+    ).join('\n');
+
+    const message = `*Odoo Cafe Receipt*\n--------------------------\nOrder: ${order.orderNumber}\nDate: ${new Date(order.updatedAt || order.createdAt).toLocaleString()}\nTable: ${tableName}\nCustomer: ${order.customerName || 'Guest'}\n--------------------------\nItems:\n${itemsText}\n--------------------------\nSubtotal: ₹${subtotal.toFixed(2)}\n${discount > 0 ? `Discount: -₹${discount.toFixed(2)}\n` : ''}${tax > 0 ? `Tax: ₹${tax.toFixed(2)}\n` : ''}Total Amount: ₹${total.toFixed(2)}\n--------------------------\nPayment Method: ${paymentMethodDisplay}\nThank you for dining with us!`;
+
+    const cleanNum = whatsappNumber.replace(/\D/g, '');
+    const phone = cleanNum.length === 10 ? '91' + cleanNum : cleanNum;
+
+    // Use web.whatsapp.com URL locally
+    const url = `https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const getChange = () => {
     if (!order) return 0;
     const received = parseFloat(amountReceived) || 0;
@@ -230,14 +248,100 @@ export default function POSPaymentPage() {
   }
 
   if (orderComplete) {
+    const subtotal = order.items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+    const tax = Number(order.taxAmount) || 0;
+    const discount = Number(order.discountAmount) || 0;
+    const total = Number(order.totalAmount);
+    const tableName = order.table ? order.table.name : 'Takeaway';
+    const paymentMethodDisplay = order.payments && order.payments.length > 0 ? order.payments.map(p => p.method).join(', ') : paymentMethod;
+
     return (
-      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-[#1A4D2E] to-[#143d24]">
-        <div className="bg-white rounded-[2.5rem] shadow-2xl p-12 text-center border border-[#E8F5E9]">
-          <div className="h-20 w-20 bg-[#4ADE80] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <Check className="h-10 w-10 text-white" />
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-[#1A4D2E] to-[#143d24] p-4 overflow-y-auto">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-lg w-full text-center border border-[#E8F5E9] my-8 relative">
+          <div className="h-16 w-16 bg-[#4ADE80] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <Check className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-[#1A4D2E] mb-2">Payment Successful!</h1>
-          <p className="text-[#5F6F65]">Order receipt is on its way. Redirecting...</p>
+          <h1 className="text-2xl font-black text-[#1A4D2E] mb-1">Payment Successful!</h1>
+          <p className="text-[#5F6F65] text-sm mb-6">Receipt generated successfully.</p>
+
+          {/* Receipt Breakdown Card */}
+          <div className="bg-[#FBFBF2] rounded-2xl p-5 border border-[#E8F5E9] text-left text-sm space-y-3 mb-6">
+            <div className="flex justify-between font-bold text-[#1A4D2E] border-b border-dashed border-gray-200 pb-2">
+              <span>Order ID</span>
+              <span>{order.orderNumber}</span>
+            </div>
+            <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+              {order.items.map(item => (
+                <div key={item.id} className="flex justify-between text-xs text-gray-600">
+                  <span>{item.quantity}x {item.productName}</span>
+                  <span className="font-semibold">₹{(Number(item.price) * item.quantity).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-dashed border-gray-200 pt-2 space-y-1.5 text-xs text-gray-500">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>₹{subtotal.toFixed(2)}</span>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-red-500 font-semibold">
+                  <span>Discount</span>
+                  <span>-₹{discount.toFixed(2)}</span>
+                </div>
+              )}
+              {tax > 0 && (
+                <div className="flex justify-between">
+                  <span>Tax</span>
+                  <span>₹{tax.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-base font-black text-[#1A4D2E] pt-2 border-t border-gray-100">
+                <span>Total</span>
+                <span>₹{total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Send via WhatsApp Section */}
+          <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100 mb-6 text-left">
+            <label className="block text-xs font-bold text-[#1A4D2E] uppercase tracking-wider mb-2">
+              📱 Send WhatsApp Receipt
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={whatsappNumber}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
+                placeholder="Country code + Mobile (e.g. 919876543210)"
+                className="flex-1 px-3 py-2 text-sm rounded-xl border border-emerald-200 focus:outline-none focus:border-[#1A4D2E] font-semibold bg-white"
+              />
+              <button
+                onClick={handleShareWhatsApp}
+                className="px-4 py-2 bg-[#1A4D2E] hover:bg-[#143d24] text-white rounded-xl text-xs font-bold transition-all shadow-md"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => window.print()}
+              className="w-full py-3 bg-white border-2 border-[#1A4D2E] text-[#1A4D2E] font-bold rounded-2xl hover:bg-[#E8F5E9] transition-all text-sm shadow-sm"
+            >
+              Print Receipt
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem('selectedTable');
+                window.location.href = '/pos/tables';
+              }}
+              className="w-full py-3 bg-[#1A4D2E] text-white font-bold rounded-2xl hover:bg-[#143d24] transition-all text-sm shadow-md"
+            >
+              Start New Order
+            </button>
+          </div>
         </div>
       </div>
     );
