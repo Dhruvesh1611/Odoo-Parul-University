@@ -1,6 +1,7 @@
 require('dotenv').config();
 const app = require('./src/app');
 const prisma = require('./src/lib/prisma');
+const { initSocket } = require('./src/lib/socket');
 
 const PORT = process.env.PORT || 4001;
 
@@ -8,6 +9,8 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server ready at http://localhost:${PORT}`);
   console.log(`📋 Health check: http://localhost:${PORT}/health`);
 });
+
+initSocket(server);
 
 // ─── Graceful Shutdown ──────────────────────────────────────
 const shutdown = async (signal) => {

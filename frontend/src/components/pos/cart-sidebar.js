@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useCartStore } from "@/stores/cart-store";
 import { Trash2, Minus, Plus, CreditCard, ChefHat, User, MapPin, Package, List } from "lucide-react";
 
-export default function CartSidebar() {
+export default function CartSidebar({ onAddCustomer }) {
   const { cart, removeItem, addItem, decreaseQuantity, clearCart, customer } = useCartStore();
   const [selectedTable, setSelectedTable] = useState(null);
   const [sending, setSending] = useState(false);
@@ -35,7 +35,7 @@ export default function CartSidebar() {
   const handleCheckout = () => {
     if (cart.length === 0) return;
     if (!customer || !customer.name || !customer.email || !customer.mobile) {
-      alert("Please add customer details (Name, Email, and Mobile) in the products page before proceeding.");
+      alert("Please add customer details (Name, Email, and Mobile) in the sidebar or products page before proceeding.");
       return;
     }
     localStorage.setItem('pendingOrder', JSON.stringify(cart));
@@ -46,7 +46,7 @@ export default function CartSidebar() {
   const handleSendToKitchen = async () => {
     if (cart.length === 0) return;
     if (!customer || !customer.name || !customer.email || !customer.mobile) {
-      alert("Please add customer details (Name, Email, and Mobile) in the products page before sending to kitchen.");
+      alert("Please add customer details (Name, Email, and Mobile) in the sidebar or products page before sending to kitchen.");
       return;
     }
     setSending(true);
@@ -130,10 +130,13 @@ export default function CartSidebar() {
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 text-gray-700 text-xs font-bold border border-gray-200">
+          <button
+            onClick={onAddCustomer}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold border border-gray-200 transition-colors cursor-pointer"
+          >
             <User className="h-3.5 w-3.5" />
             <span>{customer?.name || "Walk-in"}</span>
-          </div>
+          </button>
         </div>
       </div>
 

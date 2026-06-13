@@ -110,3 +110,69 @@ exports.deleteTable = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.transferTable = async (req, res) => {
+    try {
+        const { sourceTableId, destTableId } = req.body;
+        
+        // Find the active order at the source table
+        const order = await prisma.order.findFirst({
+            where: {
+                tableId: sourceTableId,
+                status: {
+                    notIn: ['PAID', 'CANCELLED']
+                }
+            }
+        });
+
+        if (!order) {
+            return res.status(404).json({ error: "No active order found on source table" });
+        }
+
+        // Update the order's tableId to destination table
+        const updatedOrder = await prisma.order.update({
+            where: { id: order.id },
+            data: { tableId: destTableId },
+            include: { table: true, items: true }
+        });
+
+        // Set source table status to AVAILABLE
+        await prisma.table.update({
+            where: { id: sourceTableId },
+            data: { status: 'AVAILABLE' }
+        });
+
+        // Set dest table status to OCCUPIED
+        await prisma.table.update({
+            where: { id: destTableId },
+            data: { status: 'OCCUPIED' }
+        });
+
+        // Emit socket events
+        const { getIo } = require('../lib/socket');
+        const io = getIo();
+        if (io) {
+            io.emit('table:status_updated', { tableId: sourceTableId, status: 'AVAILABLE' });
+            io.emit('table:status_updated', { tableId: destTableId, status: 'OCCUPIED' });
+            io.emit('order:status_updated', updatedOrder);
+        }
+
+        res.json({ message: "Table transfer completed successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.deleteFloor = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Cascade delete tables inside floor
+        await prisma.table.deleteMany({ where: { floorId: id } });
+        await prisma.floor.delete({ where: { id } });
+        res.json({ message: "Floor deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+};

@@ -12,7 +12,12 @@
     "db:migrate": "npx prisma migrate dev",
     "db:studio": "npx prisma studio"
   },
-  "keywords": ["pos", "cafe", "restaurant", "point-of-sale"],
+  "keywords": [
+    "pos",
+    "cafe",
+    "restaurant",
+    "point-of-sale"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -25,6 +30,7 @@
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^7.0.12",
     "prisma": "^5.10.2",
+    "razorpay": "^2.9.6",
     "socket.io": "^4.8.3",
     "zod": "^4.3.6"
   },

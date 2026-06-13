@@ -7,10 +7,12 @@ const { authenticateToken, requireRole } = require('../middlewares/auth.middlewa
 // Floors
 router.get('/floors', authenticateToken, floorController.getFloors);
 router.post('/floors', authenticateToken, requireRole(['ADMIN']), floorController.createFloor);
+router.delete('/floors/:id', authenticateToken, requireRole(['ADMIN']), floorController.deleteFloor);
 
 // Tables
 router.post('/floors/:id/tables', authenticateToken, requireRole(['ADMIN']), floorController.addTable);
 router.put('/tables/:id', authenticateToken, requireRole(['ADMIN']), floorController.updateTable);
 router.delete('/tables/:id', authenticateToken, requireRole(['ADMIN']), floorController.deleteTable);
+router.post('/tables/transfer', authenticateToken, floorController.transferTable);
 
 module.exports = router;

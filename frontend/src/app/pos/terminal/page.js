@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, ShoppingCart, RefreshCw, Power, Coffee, User, Edit2, Plus } from "lucide-react";
+import { Search, ShoppingCart, RefreshCw, Power, Coffee, User, Plus } from "lucide-react";
 import CustomerModal from "@/components/pos/CustomerModal";
 import CloseSessionModal from "@/components/pos/CloseSessionModal";
 import CoffeeLoader from "@/components/ui/CoffeeLoader";
@@ -92,7 +92,8 @@ export default function POSTerminalPage() {
 
   return (
     <div className="flex h-full gap-6 overflow-hidden">
-      <div className="flex-1 flex flex-col gap-6 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#1A4D2E]/10 scrollbar-track-transparent">
+      {/* Left Pane (Fixed header, scrollable cards) */}
+      <div className="flex-1 flex flex-col gap-6 overflow-hidden">
         <CustomerModal 
           isOpen={isCustomerModalOpen}
           onClose={() => setIsCustomerModalOpen(false)}
@@ -100,182 +101,192 @@ export default function POSTerminalPage() {
           initialData={customer}
         />
 
-      {loading ? (
-        <div className="flex items-center justify-center h-[60vh]">
-          <CoffeeLoader size="xl" text="Loading Menu..." />
-        </div>
-      ) : (
-        <>
-          {/* Header */}
-          <div className="flex items-center justify-between bg-white p-4 rounded-[2rem] shadow-md border border-[#E8F5E9]">
-        <div className="flex items-center gap-6">
-          <button 
-            onClick={() => setIsCustomerModalOpen(true)}
-            className="flex items-center gap-3 hover:bg-[#FBFBF2] px-3 py-2 rounded-xl transition-colors group"
-          >
-            <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${customer ? 'bg-[#E8F5E9] text-[#1A4D2E]' : 'bg-gray-100 text-gray-500 group-hover:bg-[#FBFBF2] group-hover:text-[#1A4D2E]'}`}>
-              <User className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs text-[#5F6F65] font-bold uppercase tracking-wider">Customer</p>
-              <p className={`text-lg font-bold ${customer ? 'text-[#1A4D2E]' : 'text-gray-400'}`}>
-                {customer ? customer.name : 'Walk-in'}
-              </p>
-            </div>
-          </button>
-
-          <div className="h-8 w-px bg-[#E8F5E9]"></div>
-
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-[#E8F5E9] rounded-xl flex items-center justify-center text-[#1A4D2E]">
-              <ShoppingCart className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs text-[#5F6F65] font-bold uppercase tracking-wider">Cart</p>
-              <p className="text-lg font-bold text-[#1A4D2E]">{cart.length} items</p>
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <CoffeeLoader size="xl" text="Loading Menu..." />
           </div>
-
-          {orderId && (
-            <>
-              <div className="h-8 w-px bg-[#E8F5E9]"></div>
-              <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-orange-100 text-orange-700 uppercase tracking-wider border border-orange-200">
-                ✏️ Editing Active Order
-              </span>
-            </>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.location.href = '/pos/cart'}
-            className="px-6 py-3 bg-[#1A4D2E] text-white rounded-[2rem] font-bold hover:bg-[#143d24] transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
-          >
-            <ShoppingCart className="h-5 w-5" />
-            View Cart
-          </button>
-          <button
-            onClick={() => fetchProducts()}
-            className="p-2 hover:bg-[#FBFBF2] rounded-xl text-[#5F6F65] transition-colors"
-          >
-            <RefreshCw className="h-5 w-5" />
-          </button>
-          <button
-            onClick={() => setShowCloseSessionModal(true)}
-            className="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-colors flex items-center gap-2"
-          >
-            <Power className="h-4 w-4" />
-            Close
-          </button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#5F6F65] h-5 w-5" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search products..."
-          className="w-full pl-12 pr-4 py-3 rounded-[2rem] border-2 border-[#E8F5E9] focus:border-[#1A4D2E] focus:outline-none transition-colors bg-white shadow-sm"
-        />
-      </div>
-
-      {/* Categories */}
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        <button
-          onClick={() => setSelectedCategory(null)}
-          className={`px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-all shadow-sm ${
-            !selectedCategory ? 'bg-[#1A4D2E] text-white' : 'bg-white text-[#5F6F65] hover:bg-[#FBFBF2] border border-[#E8F5E9]'
-          }`}
-        >
-          All
-        </button>
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() => setSelectedCategory(category.name)}
-            className={`px-6 py-2 rounded-full font-semibold whitespace-nowrap transition-all shadow-sm ${
-              selectedCategory === category.name ? 'bg-[#1A4D2E] text-white' : 'bg-white text-[#5F6F65] hover:bg-[#FBFBF2] border border-[#E8F5E9]'
-            }`}
-          >
-            {category.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
-        {filteredProducts.map((product) => {
-          const categoryColorBg = getCategoryColor(product.category?.name);
-          const categoryFooterClass = getCategoryBorderColor(product.category?.name);
-
-          return (
-            <div
-              key={product.id}
-              className={`group relative rounded-[32px] bg-white border border-[#EFE8D8] shadow-sm hover:shadow-2xl transition-all overflow-hidden border-b-[8px] ${categoryFooterClass} cursor-pointer`}
-              onClick={() => addItem(product)}
-            >
-              <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-r from-[#F9E4C9] via-[#FDF5EA] to-[#E6F4EB] opacity-90" />
-              
-              {/* Image */}
-              <div className="relative h-44 overflow-hidden">
-                <img
-                  src={getProductImageUrl(product)}
-                  alt={product.name}
-                  className="w-full h-full object-cover transition duration-700 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f291c]/65 to-transparent" />
-              </div>
-
-              {/* Content */}
-              <div className="relative p-6 flex flex-col gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-[#5F6F65]/70 flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-full ${categoryColorBg}`} />
-                    {product.category?.name || "Uncategorized"}
-                  </p>
-                  <h3 className="text-2xl font-bold text-[#1A4D2E] mt-2 leading-tight">
-                    {product.name}
-                  </h3>
-                </div>
-
-                {product.description && (
-                  <p className="text-sm text-[#5F6F65] line-clamp-2">
-                    {product.description}
-                  </p>
-                )}
-
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.4em] text-[#A08A6B]">Price</p>
-                    <p className="text-3xl font-black text-[#1A4D2E]">
-                      ₹{Number(product.price).toFixed(2)}
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-center justify-between bg-white p-4 rounded-[2rem] shadow-md border border-[#E8F5E9] shrink-0">
+              <div className="flex items-center gap-6">
+                <button 
+                  onClick={() => setIsCustomerModalOpen(true)}
+                  className="flex items-center gap-3 hover:bg-[#FBFBF2] px-3 py-2 rounded-xl transition-colors group"
+                >
+                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-colors ${customer ? 'bg-[#E8F5E9] text-[#1A4D2E]' : 'bg-gray-100 text-gray-500 group-hover:bg-[#FBFBF2] group-hover:text-[#1A4D2E]'}`}>
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-[#5F6F65] font-bold uppercase tracking-wider">Customer</p>
+                    <p className={`text-base font-bold ${customer ? 'text-[#1A4D2E]' : 'text-gray-400'}`}>
+                      {customer ? customer.name : 'Add Customer'}
                     </p>
                   </div>
-                  <button
-                    className="h-12 w-12 bg-[#1A4D2E] rounded-full flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      addItem(product);
-                    }}
-                  >
-                    <Plus className="h-6 w-6" />
-                  </button>
+                </button>
+
+                <div className="h-8 w-px bg-[#E8F5E9]"></div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-[#E8F5E9] rounded-xl flex items-center justify-center text-[#1A4D2E]">
+                    <ShoppingCart className="h-5 w-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-[#5F6F65] font-bold uppercase tracking-wider">Cart</p>
+                    <p className="text-base font-bold text-[#1A4D2E]">{cart.length} items</p>
+                  </div>
                 </div>
+
+                {orderId && (
+                  <>
+                    <div className="h-8 w-px bg-[#E8F5E9]"></div>
+                    <span className="px-3 py-1 rounded-full text-[11px] font-black bg-orange-100 text-orange-700 uppercase tracking-wider border border-orange-200">
+                      ✏️ Editing Active Order
+                    </span>
+                  </>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.location.href = '/pos/cart'}
+                  className="px-6 py-3 bg-[#1A4D2E] text-white rounded-[2rem] font-bold hover:bg-[#143d24] transition-all shadow-lg hover:shadow-xl flex items-center gap-2 text-sm"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  View Cart
+                </button>
+                <button
+                  onClick={() => fetchProducts()}
+                  className="p-2 hover:bg-[#FBFBF2] rounded-xl text-[#5F6F65] transition-colors"
+                >
+                  <RefreshCw className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setShowCloseSessionModal(true)}
+                  className="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-colors flex items-center gap-2 text-sm"
+                >
+                  <Power className="h-4 w-4" />
+                  Close
+                </button>
               </div>
             </div>
-          );
-        })}
+
+            {/* Search */}
+            <div className="relative shrink-0">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#5F6F65] h-5 w-5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                className="w-full pl-12 pr-4 py-3 rounded-[2rem] border-2 border-[#E8F5E9] focus:border-[#1A4D2E] focus:outline-none transition-colors bg-white shadow-sm font-semibold"
+              />
+            </div>
+
+            {/* Categories */}
+            <div className="flex gap-3 overflow-x-auto pb-2 shrink-0 scrollbar-none">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`px-6 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-all shadow-sm ${
+                  !selectedCategory ? 'bg-[#1A4D2E] text-white' : 'bg-white text-[#5F6F65] hover:bg-[#FBFBF2] border border-[#E8F5E9]'
+                }`}
+              >
+                All
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.name)}
+                  className={`px-6 py-2 rounded-full font-bold text-sm whitespace-nowrap transition-all shadow-sm ${
+                    selectedCategory === category.name ? 'bg-[#1A4D2E] text-white' : 'bg-white text-[#5F6F65] hover:bg-[#FBFBF2] border border-[#E8F5E9]'
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Scrollable Products Grid */}
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-[#1A4D2E]/15 scrollbar-track-transparent pb-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredProducts.map((product) => {
+                  const categoryColorBg = getCategoryColor(product.category?.name);
+                  const categoryFooterClass = getCategoryBorderColor(product.category?.name);
+
+                  return (
+                    <div
+                      key={product.id}
+                      className={`group relative rounded-[24px] bg-white border border-[#EFE8D8] shadow-sm hover:shadow-lg transition-all overflow-hidden border-b-[6px] ${categoryFooterClass} cursor-pointer flex flex-col justify-between`}
+                      onClick={() => addItem(product)}
+                    >
+                      <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-r from-[#F9E4C9] via-[#FDF5EA] to-[#E6F4EB] opacity-60" />
+                      
+                      {/* Image */}
+                      <div className="relative h-32 overflow-hidden bg-gray-50">
+                        <img
+                          src={getProductImageUrl(product)}
+                          alt={product.name}
+                          className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0f291c]/50 to-transparent" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="relative p-4 flex flex-col gap-2 flex-1 justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-[#5F6F65]/80 flex items-center gap-1.5 font-bold">
+                            <span className={`h-1.5 w-1.5 rounded-full ${categoryColorBg}`} />
+                            {product.category?.name || "Uncategorized"}
+                          </p>
+                          <h3 className="text-base font-bold text-[#1A4D2E] mt-1 leading-snug line-clamp-1" title={product.name}>
+                            {product.name}
+                          </h3>
+                          {product.description && (
+                            <p className="text-xs text-[#5F6F65] line-clamp-1 mt-0.5">
+                              {product.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-end justify-between mt-2 pt-2 border-t border-dashed border-gray-100">
+                          <div>
+                            <p className="text-[9px] uppercase tracking-wider text-[#A08A6B] font-bold">Price</p>
+                            <p className="text-xl font-black text-[#1A4D2E]">
+                              ₹{Number(product.price).toFixed(2)}
+                            </p>
+                          </div>
+                          <button
+                            className="h-9 w-9 bg-[#1A4D2E] rounded-full flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addItem(product);
+                            }}
+                          >
+                            <Plus className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {filteredProducts.length === 0 && (
+                <div className="text-center py-20 bg-white rounded-[2rem] border border-[#E8F5E9] shadow-sm">
+                  <p className="text-lg font-bold text-[#1A4D2E]">No products match search criteria.</p>
+                  <p className="text-sm text-[#5F6F65] mt-1">Try another keyword or category filter.</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
-    </>
-  )}
-</div>
 
       {/* Cart Sidebar */}
-      {!loading && <CartSidebar />}
+      {!loading && (
+        <CartSidebar onAddCustomer={() => setIsCustomerModalOpen(true)} />
+      )}
 
       {showCloseSessionModal && session && (
         <CloseSessionModal

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings as SettingsIcon, Users, Monitor, CreditCard, List, Save, Plus, Trash2, Edit2, X, Check, Eye, EyeOff, Layers } from "lucide-react";
+import { Settings as SettingsIcon, Users, Monitor, CreditCard, List, Save, Plus, Trash2, Edit2, X, Check, MapPin } from "lucide-react";
 import CoffeeLoader from "@/components/ui/CoffeeLoader";
 
 export default function SettingsPage() {
@@ -31,7 +31,7 @@ export default function SettingsPage() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showFloorModal, setShowFloorModal] = useState(false);
   const [showTableModal, setShowTableModal] = useState(false);
-  const [selectedFloorId, setSelectedFloorId] = useState(null);
+  const [selectedFloorForTable, setSelectedFloorForTable] = useState(null);
 
   // Initial Fetch
   useEffect(() => {
@@ -84,9 +84,7 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        // Success feedback?
-        // Maybe toast? For now native alert or just simple UI feedback
-        // alert("Settings saved!");
+        alert("Settings saved successfully!");
       }
     } catch (error) {
       console.error("Save failed:", error);
@@ -99,17 +97,7 @@ export default function SettingsPage() {
   // Users
   const handleSaveUser = async (userData) => {
     const payload = { ...userData };
-
-    if (editingUser) {
-      // When editing, remove empty password to avoid overwriting
-      if (!payload.password) delete payload.password;
-    } else {
-      // When creating, password is required
-      if (!payload.password || payload.password.length < 6) {
-        alert('Password is required (at least 6 characters) when creating a new user.');
-        return;
-      }
-    }
+    if (!payload.password) delete payload.password;
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
     const token = localStorage.getItem('token');
@@ -123,18 +111,12 @@ export default function SettingsPage() {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        const result = await res.json();
         fetchData();
         setShowUserModal(false);
         setEditingUser(null);
-
-        // Show credentials confirmation for newly created users
-        if (!editingUser) {
-          alert(`✅ User created successfully!\n\nName: ${userData.name}\nEmail: ${userData.email}\nPassword: ${userData.password}\nRole: ${userData.role}\n\nShare these credentials with the employee.`);
-        }
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to save user');
+        alert(err.error);
       }
     } catch (e) { alert(e.message); }
   };
@@ -196,7 +178,7 @@ export default function SettingsPage() {
     const res = await fetch(`${API_URL}/products/categories/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
     if (!res.ok) {
       const err = await res.json();
-      alert(err.error);
+      alert(err.error || "Failed to delete category");
     } else {
       fetchData();
     }
@@ -215,11 +197,16 @@ export default function SettingsPage() {
       if (res.ok) {
         fetchData();
         setShowFloorModal(false);
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to create floor");
       }
     } catch (e) { alert(e.message); }
+  };
+
+  const handleDeleteFloor = async (id) => {
+    if (!confirm("Delete this floor and all its tables?")) return;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
+    const token = localStorage.getItem('token');
+    await fetch(`${API_URL}/floors/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+    fetchData();
   };
 
   // Tables
@@ -227,7 +214,7 @@ export default function SettingsPage() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API_URL}/floors/${selectedFloorId}/tables`, {
+      const res = await fetch(`${API_URL}/floors/${selectedFloorForTable}/tables`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ name, seats })
@@ -235,10 +222,7 @@ export default function SettingsPage() {
       if (res.ok) {
         fetchData();
         setShowTableModal(false);
-        setSelectedFloorId(null);
-      } else {
-        const err = await res.json();
-        alert(err.error || "Failed to create table");
+        setSelectedFloorForTable(null);
       }
     } catch (e) { alert(e.message); }
   };
@@ -251,14 +235,13 @@ export default function SettingsPage() {
     fetchData();
   };
 
-
   const tabs = [
     { id: "general", label: "General", icon: SettingsIcon },
     { id: "users", label: "Users", icon: Users },
     { id: "terminals", label: "Terminals", icon: Monitor },
+    { id: "tables", label: "Tables & Floors", icon: MapPin },
     { id: "payments", label: "Payments", icon: CreditCard },
     { id: "categories", label: "Categories", icon: List },
-    { id: "tables", label: "Tables", icon: Layers },
   ];
 
   if (loading) return (
@@ -398,6 +381,56 @@ export default function SettingsPage() {
               </div>
             )}
 
+            {/* Tables & Floors */}
+            {activeTab === "tables" && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-bold text-coffee-800">Floors & Tables Layout</h3>
+                  <button onClick={() => setShowFloorModal(true)} className="btn-primary-sm"><Plus className="h-4 w-4" /> Add Floor</button>
+                </div>
+
+                <div className="space-y-8">
+                  {floors.map(floor => (
+                    <div key={floor.id} className="p-6 rounded-[2rem] border border-gray-200 bg-gray-50/50 space-y-4">
+                      <div className="flex justify-between items-center border-b pb-3 border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl font-bold text-[#1A4D2E]">{floor.name}</span>
+                          <span className="text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{floor.tables?.length || 0} tables</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setSelectedFloorForTable(floor.id); setShowTableModal(true); }}
+                            className="px-3 py-1.5 bg-[#1A4D2E] hover:bg-[#143d24] text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Add Table
+                          </button>
+                          <button onClick={() => handleDeleteFloor(floor.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {floor.tables?.map(table => (
+                          <div key={table.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex justify-between items-center shadow-sm">
+                            <div>
+                              <p className="font-bold text-coffee-800">{table.name}</p>
+                              <p className="text-xs text-gray-500">{table.seats} Seats • {table.status || 'AVAILABLE'}</p>
+                            </div>
+                            <button onClick={() => handleDeleteTable(table.id)} className="text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                          </div>
+                        ))}
+                        {(!floor.tables || floor.tables.length === 0) && (
+                          <p className="text-xs text-gray-400 italic py-2 col-span-full">No tables on this floor yet.</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {floors.length === 0 && (
+                    <p className="text-center text-gray-400 italic py-8">No floors created yet. Add a floor to get started!</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Categories */}
             {activeTab === "categories" && (
               <div className="space-y-6">
@@ -415,60 +448,6 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-
-            {/* Tables */}
-            {activeTab === "tables" && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-bold text-coffee-800">Tables & Floors Architecture</h3>
-                  <button onClick={() => setShowFloorModal(true)} className="btn-primary-sm">
-                    <Plus className="h-4 w-4" /> Add Floor
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {floors.map(floor => (
-                    <div key={floor.id} className="p-6 rounded-2xl border border-gray-100 bg-[#FBFBF2] space-y-4">
-                      <div className="flex justify-between items-center border-b pb-2">
-                        <h4 className="text-lg font-bold text-[#1A4D2E]">{floor.name}</h4>
-                        <button
-                          onClick={() => {
-                            setSelectedFloorId(floor.id);
-                            setShowTableModal(true);
-                          }}
-                          className="px-3 py-1.5 bg-[#E8F5E9] text-[#1A4D2E] rounded-xl font-bold text-xs flex items-center gap-1 hover:bg-[#1A4D2E] hover:text-white transition-all border border-[#1A4D2E]/20"
-                        >
-                          <Plus className="h-3 w-3" /> Add Table
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {floor.tables?.map(table => (
-                          <div key={table.id} className="p-4 rounded-xl border border-gray-100 bg-white flex justify-between items-center hover:shadow-md transition">
-                            <div>
-                              <p className="font-bold text-[#1A4D2E]">{table.name}</p>
-                              <p className="text-xs text-gray-400 font-semibold uppercase mt-0.5">{table.seats} Seats • {table.status}</p>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteTable(table.id)}
-                              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                        {(!floor.tables || floor.tables.length === 0) && (
-                          <p className="text-xs text-gray-400 italic col-span-3 py-2">No tables on this floor yet</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {floors.length === 0 && (
-                    <p className="text-sm text-gray-400 italic text-center py-10">No floors configured. Click Add Floor to start!</p>
-                  )}
                 </div>
               </div>
             )}
@@ -555,11 +534,8 @@ export default function SettingsPage() {
         />
       )}
       {showTableModal && (
-        <TableInputModal
-          onClose={() => {
-            setShowTableModal(false);
-            setSelectedFloorId(null);
-          }}
+        <TableModal
+          onClose={() => setShowTableModal(false)}
           onSave={handleSaveTable}
         />
       )}
@@ -593,6 +569,30 @@ function InputModal({ title, label, onClose, onSave }) {
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-3 font-bold text-gray-500 bg-gray-100 rounded-xl">Cancel</button>
           <button onClick={() => onSave(val)} disabled={!val} className="flex-1 py-3 font-bold text-white bg-[#1A4D2E] rounded-xl">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TableModal({ onClose, onSave }) {
+  const [name, setName] = useState("");
+  const [seats, setSeats] = useState("4");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <h3 className="text-xl font-bold text-coffee-800">Add Table</h3>
+        <div>
+          <label className="block text-sm font-bold text-gray-600 mb-2">Table Name</label>
+          <input autoFocus placeholder="e.g. Table 1" className="w-full px-4 py-2 border rounded-xl outline-none focus:border-[#1A4D2E]" value={name} onChange={e => setName(e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-gray-600 mb-1">Seats Count</label>
+          <input type="number" className="w-full px-4 py-2 border rounded-xl outline-none focus:border-[#1A4D2E]" value={seats} onChange={e => setSeats(e.target.value)} />
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-3 font-bold text-gray-500 bg-gray-100 rounded-xl">Cancel</button>
+          <button onClick={() => onSave(name, Number(seats))} disabled={!name || !seats} className="flex-1 py-3 font-bold text-white bg-[#1A4D2E] rounded-xl">Save</button>
         </div>
       </div>
     </div>
@@ -636,33 +636,6 @@ function UserModal({ user, onClose, onSave }) {
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 py-3 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
           <button onClick={() => onSave(data)} className="flex-1 py-3 font-bold text-white bg-[#1A4D2E] rounded-xl hover:bg-[#143D24]">Save User</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TableInputModal({ onClose, onSave }) {
-  const [name, setName] = useState("");
-  const [seats, setSeats] = useState("4");
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
-        <h3 className="text-xl font-bold text-coffee-800">Add Table</h3>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-bold text-gray-600 mb-1">Table Name</label>
-            <input autoFocus placeholder="e.g. Table 1" className="w-full px-4 py-2 border rounded-xl outline-none focus:border-[#1A4D2E]" value={name} onChange={e => setName(e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-600 mb-1">Seats Count</label>
-            <input type="number" className="w-full px-4 py-2 border rounded-xl outline-none focus:border-[#1A4D2E]" value={seats} onChange={e => setSeats(e.target.value)} />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-3 font-bold text-gray-500 bg-gray-100 rounded-xl">Cancel</button>
-          <button onClick={() => onSave(name, seats)} disabled={!name || !seats} className="flex-1 py-3 font-bold text-white bg-[#1A4D2E] rounded-xl">Save</button>
         </div>
       </div>
     </div>
