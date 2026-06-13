@@ -18,12 +18,12 @@ async function clearDatabase() {
   await prisma.user.deleteMany();
 }
 
-async function createTenant({ shopName, adminName, adminEmail, staff }) {
+async function createTenant() {
   const password = await bcrypt.hash('password123', 10);
   const admin = await prisma.user.create({
     data: {
-      name: adminName,
-      email: adminEmail,
+      name: 'Admin User',
+      email: 'admin@odoo-cafe.com',
       password,
       role: 'ADMIN',
       isActive: true,
@@ -33,8 +33,8 @@ async function createTenant({ shopName, adminName, adminEmail, staff }) {
 
   const shop = await prisma.shop.create({
     data: {
-      name: shopName,
-      slug: `${slugify(shopName)}-${crypto.randomBytes(3).toString('hex')}`,
+      name: 'Odoo Cafe',
+      slug: `${slugify('Odoo Cafe')}-${crypto.randomBytes(3).toString('hex')}`,
       adminId: admin.id,
     },
   });
@@ -43,6 +43,11 @@ async function createTenant({ shopName, adminName, adminEmail, staff }) {
     where: { id: admin.id },
     data: { shopId: shop.id },
   });
+
+  const staff = [
+    { name: 'Jagjeet Singh', email: 'jagjeet@odoo-cafe.com', role: 'EMPLOYEE' },
+    { name: 'Gordon Ramsay', email: 'gordon@odoo-cafe.com', role: 'KITCHEN' },
+  ];
 
   for (const member of staff) {
     await prisma.user.create({
@@ -65,25 +70,7 @@ async function main() {
 
   await clearDatabase();
 
-  await createTenant({
-    shopName: 'Odoo Cafe',
-    adminName: 'Admin User',
-    adminEmail: 'admin@odoo-cafe.com',
-    staff: [
-      { name: 'Jagjeet Singh', email: 'jagjeet@odoo-cafe.com', role: 'EMPLOYEE' },
-      { name: 'Gordon Ramsay', email: 'gordon@odoo-cafe.com', role: 'KITCHEN' },
-    ],
-  });
-
-  await createTenant({
-    shopName: 'North Bean',
-    adminName: 'North Admin',
-    adminEmail: 'admin2@odoo-cafe.com',
-    staff: [
-      { name: 'Rahul Sharma', email: 'rahul@northbean.com', role: 'EMPLOYEE' },
-      { name: 'Rakesh Kumar', email: 'rakesh@northbean.com', role: 'KITCHEN' },
-    ],
-  });
+  await createTenant();
 
   console.log('✅ Seeding completed.');
 }
