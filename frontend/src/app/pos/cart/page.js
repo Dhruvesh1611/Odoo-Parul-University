@@ -13,6 +13,11 @@ export default function CartPage() {
 
   const handleSendToKitchen = async () => {
     if (cart.length === 0) return;
+    if (!customer || !customer.name || !customer.email || !customer.mobile) {
+      alert("Please add customer details (Name, Email, and Mobile) before sending to kitchen.");
+      setIsCustomerModalOpen(true);
+      return;
+    }
     setSending(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
@@ -23,10 +28,11 @@ export default function CartPage() {
         throw new Error("No active session found. Please start a session first.");
       }
 
-      // Step 1: Create Order
+      // Create Order with status SENT in one go
       const orderPayload = {
         sessionId: session.id,
         tableId: selectedTable?.id || undefined,
+        status: 'SENT',
         type: selectedTable ? "DINE_IN" : "TAKEAWAY",
         items: cart.map(item => ({
           productId: item.id,
@@ -47,23 +53,6 @@ export default function CartPage() {
       if (!orderResponse.ok) {
         const errorData = await orderResponse.text();
         throw new Error(`Failed to create order: ${errorData || orderResponse.statusText}`);
-      }
-
-      const order = await orderResponse.json();
-
-      // Step 2: Send to Kitchen
-      const statusResponse = await fetch(`${API_URL}/orders/${order.id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: 'SENT' })
-      });
-
-      if (!statusResponse.ok) {
-        const errorData = await statusResponse.text();
-        throw new Error(`Failed to send order to kitchen: ${errorData || statusResponse.statusText}`);
       }
 
       clearCart();
