@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001') + '/auth';
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api') + '/auth';
 
 const AuthContext = createContext(null);
 
