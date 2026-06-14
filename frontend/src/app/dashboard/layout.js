@@ -20,7 +20,7 @@ const sidebarItems = [
   { icon: ShoppingBag, label: "Orders", href: "/dashboard/orders" },
   { icon: Coffee, label: "Products", href: "/dashboard/products" },
   { icon: Ticket, label: "Coupons", href: "/dashboard/coupons" },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
+  { icon: Settings, label: "Manage Cafe", href: "/dashboard/settings" },
 ];
 
 export default function DashboardLayout({ children }) {
@@ -31,9 +31,8 @@ export default function DashboardLayout({ children }) {
     <div className="flex h-screen bg-beige-100">
       {/* ✅ Sidebar */}
       <aside
-        className={`${
-          isSidebarOpen ? "w-64" : "w-20"
-        } relative sidebar-aurora text-white shadow-[0_20px_50px_rgba(9,22,15,0.45)] 
+        className={`${isSidebarOpen ? "w-64" : "w-20"
+          } relative sidebar-aurora text-white shadow-[0_20px_50px_rgba(9,22,15,0.45)] 
         transition-all duration-500 flex flex-col rounded-[26px] my-4 ml-4 
         h-[calc(100vh-2rem)] overflow-hidden border border-white/10`}
       >
@@ -64,11 +63,10 @@ export default function DashboardLayout({ children }) {
 
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-2 rounded-2xl border border-white/30 backdrop-blur ${
-              isSidebarOpen
+            className={`p-2 rounded-2xl border border-white/30 backdrop-blur ${isSidebarOpen
                 ? "bg-white/10 hover:bg-white/20"
                 : "bg-white/20 hover:bg-white/30 mx-auto"
-            }`}
+              }`}
           >
             <Menu className="h-6 w-6" />
           </button>
@@ -83,18 +81,16 @@ export default function DashboardLayout({ children }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center p-3 rounded-2xl transition-all duration-300 group backdrop-blur ${
-                  isActive
+                className={`flex items-center p-3 rounded-2xl transition-all duration-300 group backdrop-blur ${isActive
                     ? "bg-white text-[#1A4D2E] shadow-[0_20px_40px_rgba(0,0,0,0.25)] border border-white/80"
                     : "bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 hover:text-white"
-                }`}
+                  }`}
               >
                 <item.icon
-                  className={`h-6 w-6 ${
-                    isActive
+                  className={`h-6 w-6 ${isActive
                       ? "text-[#1A4D2E]"
                       : "text-white/70 group-hover:text-white"
-                  }`}
+                    }`}
                 />
 
                 {isSidebarOpen && (
@@ -107,7 +103,7 @@ export default function DashboardLayout({ children }) {
 
         {/* Logout */}
         <div className="p-4 border-t border-white/20 mx-3 mb-4 relative z-10">
-          <button 
+          <button
             onClick={() => {
               localStorage.removeItem('token');
               localStorage.removeItem('user');

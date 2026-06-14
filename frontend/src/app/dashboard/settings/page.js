@@ -252,12 +252,12 @@ export default function SettingsPage() {
   };
 
   const tabs = [
-    { id: "general", label: "General", icon: SettingsIcon },
-    { id: "users", label: "Users", icon: Users },
-    { id: "terminals", label: "Terminals", icon: Monitor },
-    { id: "tables", label: "Tables & Floors", icon: MapPin },
-    { id: "payments", label: "Payments", icon: CreditCard },
-    { id: "categories", label: "Categories", icon: List },
+    { id: "general", label: "My Cafe", icon: SettingsIcon, desc: "Name, currency & receipts" },
+    { id: "users", label: "Team", icon: Users, desc: "Staff & roles" },
+    { id: "terminals", label: "POS Devices", icon: Monitor, desc: "Order terminals" },
+    { id: "tables", label: "Dine-In Layout", icon: MapPin, desc: "Floors & tables" },
+    { id: "payments", label: "Billing", icon: CreditCard, desc: "Payment methods" },
+    { id: "categories", label: "Menu Groups", icon: List, desc: "Product categories" },
   ];
 
   if (loading) return (
@@ -269,12 +269,12 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 pb-20">
       {/* Header */}
-      <section className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-[#0F291C] via-[#175236] to-[#1F5D3E] text-white p-8 shadow-[0_30px_70px_rgba(10,46,29,0.35)] border border-white/10">
+      <section className="relative overflow-hidden rounded-[24px] bg-gradient-to-r from-[#0F291C] via-[#175236] to-[#1F5D3E] text-white p-8 shadow-[0_16px_48px_rgba(10,46,29,0.30)] border border-white/10">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-3 max-w-2xl">
-            <p className="text-xs uppercase tracking-[0.4em] text-white/70">Odoo Cafe · Control Room</p>
-            <h2 className="text-4xl font-black leading-tight">System Settings</h2>
-            <p className="text-white/80 text-lg">Configure your cafe ecosystem.</p>
+          <div className="space-y-2 max-w-2xl">
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60">Odoo Cafe · Settings</p>
+            <h2 className="text-3xl font-extrabold leading-tight">Cafe Settings</h2>
+            <p className="text-white/70 text-base">Manage everything about your cafe — from branding to billing.</p>
           </div>
           {(activeTab === "general" || activeTab === "payments") && (
             <button
@@ -291,23 +291,24 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar */}
         <div className="lg:col-span-1">
-          <div className="rounded-[30px] bg-white border border-[#E4E0D1] shadow-[0_20px_45px_rgba(26,77,46,0.08)] p-3 space-y-2">
+          <div className="rounded-[24px] bg-white border border-[#e8e5d8] shadow-sm p-2.5 space-y-1">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-semibold transition ${isActive ? "bg-[#1A4D2E] text-white shadow" : "text-[#1A4D2E] hover:bg-[#F3EEE2]"
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all ${isActive ? "bg-[#1A4D2E] text-white shadow-md" : "text-[#1A4D2E] hover:bg-[#f5f3ea]"
                     }`}
                 >
-                  <span className="flex items-center gap-3">
-                    <span className={`h-10 w-10 rounded-2xl flex items-center justify-center border ${isActive ? "border-white/40 bg-white/10" : "border-[#E4E0D1] bg-[#F7F4EB]"}`}>
-                      <tab.icon className="h-5 w-5" />
-                    </span>
-                    {tab.label}
+                  <span className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? "bg-white/15" : "bg-[#f5f3ea] border border-[#e8e5d8]"}`}>
+                    <tab.icon className="h-4 w-4" />
                   </span>
-                  {isActive && <span className="h-2 w-2 rounded-full bg-white" />}
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold leading-tight ${isActive ? "text-white" : "text-[#1A4D2E]"}`}>{tab.label}</p>
+                    <p className={`text-[10px] leading-tight mt-0.5 ${isActive ? "text-white/60" : "text-[#8a8778]"}`}>{tab.desc}</p>
+                  </div>
+                  {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white flex-shrink-0" />}
                 </button>
               );
             })}
@@ -316,7 +317,7 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="lg:col-span-3">
-          <div className="rounded-[32px] bg-white border border-[#EFE8D8] shadow-[0_25px_60px_rgba(26,77,46,0.08)] p-8">
+          <div className="rounded-[24px] bg-white border border-[#e8e5d8] shadow-sm p-6 lg:p-8">
 
             {/* General */}
             {activeTab === "general" && (
@@ -326,8 +327,8 @@ export default function SettingsPage() {
                     <SettingsIcon className="h-7 w-7 text-[#1A4D2E]" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-[#1A4D2E]">General Identity</h3>
-                    <p className="text-[#5F6F65] text-sm">Update your cafe's basic information and preferences.</p>
+                    <h3 className="text-xl font-bold text-[#1A4D2E]">Cafe Details</h3>
+                    <p className="text-[#5F6F65] text-sm">Your cafe's name, currency, and what appears on receipts.</p>
                   </div>
                 </div>
 
@@ -386,8 +387,8 @@ export default function SettingsPage() {
             {activeTab === "users" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-bold text-coffee-800">Staff Members</h3>
-                  <button onClick={() => { setEditingUser(null); setShowUserModal(true); }} className="btn-primary-sm"><Plus className="h-4 w-4" /> Add User</button>
+                  <h3 className="text-xl font-bold text-[#1A4D2E]">Your Team</h3>
+                  <button onClick={() => { setEditingUser(null); setShowUserModal(true); }} className="btn-primary-sm"><Plus className="h-4 w-4" /> Add Staff</button>
                 </div>
                 <div className="overflow-hidden rounded-2xl border border-gray-100">
                   <table className="w-full text-left">
@@ -421,8 +422,8 @@ export default function SettingsPage() {
             {activeTab === "terminals" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-bold text-coffee-800">POS Terminals</h3>
-                  <button onClick={() => setShowTerminalModal(true)} className="btn-primary-sm"><Plus className="h-4 w-4" /> Add Terminal</button>
+                  <h3 className="text-xl font-bold text-[#1A4D2E]">Order Devices</h3>
+                  <button onClick={() => setShowTerminalModal(true)} className="btn-primary-sm"><Plus className="h-4 w-4" /> Add Device</button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {terminals.map(t => (
@@ -444,7 +445,7 @@ export default function SettingsPage() {
             {activeTab === "tables" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-bold text-coffee-800">Floors & Tables Layout</h3>
+                  <h3 className="text-xl font-bold text-[#1A4D2E]">Your Cafe Layout</h3>
                   <button onClick={() => setShowFloorModal(true)} className="btn-primary-sm"><Plus className="h-4 w-4" /> Add Floor</button>
                 </div>
 
@@ -494,7 +495,7 @@ export default function SettingsPage() {
             {activeTab === "categories" && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-2xl font-bold text-coffee-800">Product Categories</h3>
+                  <h3 className="text-xl font-bold text-[#1A4D2E]">Menu Categories</h3>
                   <button onClick={() => setShowCategoryModal(true)} className="btn-primary-sm"><Plus className="h-4 w-4" /> Add Category</button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -519,8 +520,8 @@ export default function SettingsPage() {
                     <CreditCard className="h-7 w-7 text-[#1A4D2E]" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-[#1A4D2E]">Payment Configuration</h3>
-                    <p className="text-[#5F6F65] text-sm">Manage how your customers can pay for their orders.</p>
+                    <h3 className="text-xl font-bold text-[#1A4D2E]">How Customers Pay</h3>
+                    <p className="text-[#5F6F65] text-sm">Toggle payment methods your cafe accepts.</p>
                   </div>
                 </div>
 

@@ -1,5 +1,3 @@
-// backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,7 +7,231 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums
+model Shop {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  adminId   String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  admin     User     @relation("ShopAdmin", fields: [adminId], references: [id])
+  users     User[]   @relation("ShopUsers")
+}
+
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String
+  name        String
+  role        Role      @default(EMPLOYEE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isActive    Boolean   @default(true)
+  lastLogin   DateTime?
+  shopId      String?
+  orders      Order[]
+  sessions    Session[]
+  managedShop Shop?     @relation("ShopAdmin")
+  shop        Shop?     @relation("ShopUsers", fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([role])
+}
+
+model Terminal {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sessions  Session[]
+}
+
+model Session {
+  id          String        @id @default(uuid())
+  terminalId  String
+  userId      String
+  startAt     DateTime      @default(now())
+  endAt       DateTime?
+  status      SessionStatus @default(OPEN)
+  openingCash Decimal       @default(0) @db.Decimal(10, 2)
+  closingCash Decimal?      @db.Decimal(10, 2)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  orders      Order[]
+  terminal    Terminal      @relation(fields: [terminalId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+}
+
+model Floor {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tables    Table[]
+}
+
+model Table {
+  id        String   @id @default(uuid())
+  name      String
+  seats     Int
+  active    Boolean  @default(true)
+  floorId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status    String   @default("AVAILABLE")
+  orders    Order[]
+  floor     Floor    @relation(fields: [floorId], references: [id])
+
+  @@index([floorId])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
+model Product {
+  id            String      @id @default(uuid())
+  name          String
+  description   String?
+  price         Decimal     @db.Decimal(10, 2)
+  unit          String?
+  tax           Decimal     @default(0) @db.Decimal(5, 2)
+  isAvailable   Boolean     @default(true)
+  sendToKitchen Boolean     @default(false)
+  categoryId    String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  imageUrl      String?
+  orderItems    OrderItem[]
+  category      Category    @relation(fields: [categoryId], references: [id])
+  variants      Variant[]
+
+  @@index([categoryId])
+}
+
+model Variant {
+  id         String      @id @default(uuid())
+  name       String
+  extraPrice Decimal     @default(0) @db.Decimal(10, 2)
+  productId  String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
+  product    Product     @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+}
+
+model Order {
+  id             String         @id @default(uuid())
+  orderNumber    String         @unique
+  status         OrderStatus    @default(DRAFT)
+  type           String         @default("DINE_IN")
+  version        Int            @default(1)
+  sessionId      String?
+  tableId        String?
+  userId         String?
+  customerName   String?
+  customerEmail  String?
+  customerMobile String?
+  totalAmount    Decimal        @default(0) @db.Decimal(10, 2)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  discountAmount Decimal        @default(0) @db.Decimal(10, 2)
+  discountCode   String?
+  taxAmount      Decimal        @default(0) @db.Decimal(10, 2)
+  paymentStatus  String         @default("PENDING")
+  kitchenTicket  KitchenTicket?
+  session        Session?       @relation(fields: [sessionId], references: [id])
+  table          Table?         @relation(fields: [tableId], references: [id])
+  user           User?          @relation(fields: [userId], references: [id])
+  items          OrderItem[]
+  payments       Payment[]
+
+  @@index([createdAt])
+  @@index([customerEmail])
+  @@index([customerMobile])
+  @@index([paymentStatus])
+  @@index([sessionId])
+  @@index([status])
+  @@index([tableId])
+  @@index([userId])
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  productId   String
+  productName String
+  price       Decimal  @db.Decimal(10, 2)
+  variantName String?
+  variantId   String?
+  quantity    Int
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  notes       String?
+  order       Order    @relation(fields: [orderId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+  variant     Variant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantId])
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  orderId   String
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(10, 2)
+  status    PaymentStatus @default(PENDING)
+  reference String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  order     Order         @relation(fields: [orderId], references: [id])
+
+  @@index([createdAt])
+  @@index([orderId])
+  @@index([status])
+}
+
+model Settings {
+  id             String   @id @default(uuid())
+  cafeName       String   @default("Odoo Cafe")
+  receiptFooter  String   @default("Thank you for your visit!")
+  currency       String   @default("₹")
+  cashEnabled    Boolean  @default(true)
+  digitalEnabled Boolean  @default(true)
+  upiEnabled     Boolean  @default(true)
+  upiId          String?
+  updatedAt      DateTime @updatedAt
+}
+
+model Coupon {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  discount  Decimal   @db.Decimal(10, 2)
+  type      String    @default("PERCENTAGE")
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model KitchenTicket {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  status    String   @default("TO_COOK")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
 enum Role {
   ADMIN
   EMPLOYEE
@@ -40,243 +262,4 @@ enum PaymentStatus {
 enum SessionStatus {
   OPEN
   CLOSED
-}
-
-// Models
-
-model Shop {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  adminId   String   @unique
-  admin     User     @relation("ShopAdmin", fields: [adminId], references: [id], onDelete: Restrict)
-  users     User[]   @relation("ShopUsers")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model User {
-  id          String    @id @default(uuid())
-  name        String
-  email       String    @unique
-  password    String
-  role        Role      @default(EMPLOYEE)
-  shopId      String?
-  shop        Shop?     @relation("ShopUsers", fields: [shopId], references: [id], onDelete: Cascade)
-  managedShop Shop?     @relation("ShopAdmin")
-  isActive    Boolean   @default(true)
-  lastLogin   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([shopId])
-
-  sessions  Session[]
-  orders    Order[]
-}
-
-model Terminal {
-  id        String   @id @default(uuid())
-  name      String   @unique // e.g., "POS-01"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  sessions Session[]
-}
-
-model Session {
-  id           String        @id @default(uuid())
-  terminalId   String
-  terminal     Terminal      @relation(fields: [terminalId], references: [id])
-  userId       String
-  user         User          @relation(fields: [userId], references: [id])
-  
-  startAt      DateTime      @default(now())
-  endAt        DateTime?
-  status       SessionStatus @default(OPEN)
-  openingCash  Decimal       @default(0) @db.Decimal(10, 2)
-  closingCash  Decimal?      @db.Decimal(10, 2)
-  
-  orders       Order[]
-
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  // Partial index: Only one OPEN session per terminal
-  // @@unique([terminalId], name: "active_session_per_terminal", map: "active_session_per_terminal_idx") 
-}
-
-model Floor {
-  id        String   @id @default(uuid())
-  name      String
-  tables    Table[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Table {
-  id        String   @id @default(uuid())
-  name      String
-  seats     Int
-  active    Boolean  @default(true)
-  status    String   @default("AVAILABLE") // AVAILABLE, RESERVED, OCCUPIED
-  floorId   String
-  floor     Floor    @relation(fields: [floorId], references: [id])
-  orders    Order[]
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Category {
-  id        String    @id @default(uuid())
-  name      String
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model Product {
-  id            String      @id @default(uuid())
-  name          String
-  description   String?
-  price         Decimal     @db.Decimal(10, 2)
-  unit          String?     // e.g. "Item", "kg", "L"
-  tax           Decimal     @default(0) @db.Decimal(5, 2)
-  isAvailable   Boolean     @default(true)
-  sendToKitchen Boolean     @default(false)
-  imageUrl      String?
-  
-  categoryId    String
-  category      Category    @relation(fields: [categoryId], references: [id])
-  variants      Variant[]
-  orderItems    OrderItem[] // Relation for integrity
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-}
-
-model Variant {
-  id         String   @id @default(uuid())
-  name       String
-  extraPrice Decimal  @default(0) @db.Decimal(10, 2)
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-  orderItems OrderItem[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-model Order {
-  id          String      @id @default(uuid())
-  orderNumber String      @unique // #ORD-YYYYMMDD-XXXX
-  
-  status      OrderStatus @default(DRAFT)
-  paymentStatus String    @default("PENDING") // PENDING, PAID
-  type        String      @default("DINE_IN") // DINE_IN, TAKEAWAY
-  version     Int         @default(1) // Optimistic Concurrency
-  
-  sessionId   String?
-  session     Session?    @relation(fields: [sessionId], references: [id])
-  
-  tableId     String?
-  table       Table?      @relation(fields: [tableId], references: [id])
-  
-  userId      String?     // Staff who created/managed
-  user        User?       @relation(fields: [userId], references: [id])
-
-  // Customer Details
-  customerName   String?
-  customerEmail  String?
-  customerMobile String?
-
-  items       OrderItem[]
-  payments    Payment[]
-  kitchenTicket KitchenTicket?
-  
-  taxAmount      Decimal     @default(0) @db.Decimal(10, 2)
-  discountAmount Decimal     @default(0) @db.Decimal(10, 2)
-  discountCode   String?
-  totalAmount    Decimal     @default(0) @db.Decimal(10, 2)
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-model OrderItem {
-  id             String  @id @default(uuid())
-  orderId        String
-  order          Order   @relation(fields: [orderId], references: [id])
-  
-  productId      String
-  product        Product @relation(fields: [productId], references: [id])
-  
-  // Snapshots
-  productName    String
-  price          Decimal @db.Decimal(10, 2)
-  variantName    String?
-  
-  // Normalized Relation
-  variantId      String?
-  variant        Variant? @relation(fields: [variantId], references: [id])
-  
-  quantity       Int
-  status         String  @default("PENDING") // PENDING, PREPARING, READY
-  notes          String? // Special instructions
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-model Payment {
-  id            String        @id @default(uuid())
-  orderId       String
-  order         Order         @relation(fields: [orderId], references: [id])
-  
-  method        PaymentMethod
-  amount        Decimal       @db.Decimal(10, 2)
-  status        PaymentStatus @default(PENDING)
-  reference     String?       // Transaction ID / UPI Ref
-  
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-}
-
-model Settings {
-  id        String   @id @default(uuid())
-  
-  // General
-  cafeName      String   @default("Odoo Cafe")
-  receiptFooter String   @default("Thank you for your visit!")
-  currency      String   @default("₹")
-
-  // Payment Toggles
-  cashEnabled    Boolean @default(true)
-  digitalEnabled Boolean @default(true)
-  upiEnabled     Boolean @default(true)
-  
-  // Configuration
-  upiId          String? // e.g. "123@ybl"
-  
-  updatedAt      DateTime @updatedAt
-}
-
-model Coupon {
-  id         String    @id @default(uuid())
-  code       String    @unique
-  discount   Decimal   @db.Decimal(10, 2)
-  type       String    @default("PERCENTAGE") // PERCENTAGE or FIXED
-  isActive   Boolean   @default(true)
-  expiresAt  DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-}
-
-model KitchenTicket {
-  id        String   @id @default(uuid())
-  orderId   String   @unique
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  status    String   @default("TO_COOK") // TO_COOK, PREPARING, COMPLETED, SERVED
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }

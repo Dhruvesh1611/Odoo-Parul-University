@@ -1,7 +1,10 @@
 const prisma = require('../src/lib/prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { Prisma } = require('@prisma/client');
 const { slugify } = require('../src/utils/slugify');
+
+const products = require('./data/seed-products');
 
 async function clearDatabase() {
   await prisma.orderItem.deleteMany();
@@ -20,6 +23,7 @@ async function clearDatabase() {
 
 async function createTenant() {
   const password = await bcrypt.hash('password123', 10);
+
   const admin = await prisma.user.create({
     data: {
       name: 'Admin User',
@@ -65,19 +69,76 @@ async function createTenant() {
   return { admin, shop };
 }
 
-async function main() {
-  console.log('🌱 Starting seed...');
+async function createCategories() {
+  const categoryNames = [
+    'Beverages',
+    'Snacks',
+    'Breakfast',
+    'Main Course',
+    'Desserts',
+    'Salads',
+    'Specials',
+  ];
 
+  const categories = {};
+
+  for (const name of categoryNames) {
+    const category = await prisma.category.create({
+      data: { name },
+    });
+    categories[name] = category.id;
+    console.log(`  📁 Created category: ${name}`);
+  }
+
+  return categories;
+}
+
+async function createProducts(categories) {
+  let count = 0;
+
+  for (const product of products) {
+    await prisma.product.create({
+      data: {
+        name: product.name,
+        description: product.description,
+        price: new Prisma.Decimal(product.price),
+        unit: product.unit,
+        tax: new Prisma.Decimal('0'),
+        isAvailable: true,
+        sendToKitchen:
+          product.category === 'Main Course' ||
+          product.category === 'Specials',
+        imageUrl: product.imageUrl,
+        categoryId: categories[product.category],
+      },
+    });
+    count++;
+  }
+
+  return count;
+}
+
+async function main() {
+  console.log('🌱 Starting seed...\n');
+
+  console.log('🗑️  Clearing database...');
   await clearDatabase();
 
+  console.log('👤 Creating tenant (admin + shop + staff)...');
   await createTenant();
 
-  console.log('✅ Seeding completed.');
+  console.log('📁 Creating categories...');
+  const categories = await createCategories();
+
+  console.log(`\n🍔 Creating ${products.length} products...`);
+  const count = await createProducts(categories);
+
+  console.log(`\n✅ Seeding completed! Added ${count} products across ${Object.keys(categories).length} categories.`);
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error('❌ Seed failed:', error);
     process.exit(1);
   })
   .finally(async () => {

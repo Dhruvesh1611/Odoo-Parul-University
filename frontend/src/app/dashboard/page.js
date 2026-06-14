@@ -238,8 +238,8 @@ export default function DashboardPage() {
                   key={option.value}
                   onClick={() => setActiveRange(option.value)}
                   className={`px-5 py-2 rounded-full text-sm font-semibold transition ${activeRange === option.value
-                      ? "bg-white text-[#1A4D2E] shadow"
-                      : "text-white/80 hover:bg-white/10"
+                    ? "bg-white text-[#1A4D2E] shadow"
+                    : "text-white/80 hover:bg-white/10"
                     }`}
                 >
                   {option.label}
@@ -317,20 +317,20 @@ export default function DashboardPage() {
                 series={
                   categories.length > 0
                     ? categories.map((cat, idx) => {
-                        const key = cat.toLowerCase().replace(/\s+/g, '');
-                        const colors = ['#1A4D2E', '#F4A460', '#4ADE80', '#8B5CF6', '#F59E0B'];
-                        return {
-                          data: chartData.map((d) => d[key] || 0),
-                          label: cat,
-                          color: colors[idx % colors.length],
-                          curve: "linear",
-                        };
-                      })
+                      const key = cat.toLowerCase().replace(/\s+/g, '');
+                      const colors = ['#1A4D2E', '#F4A460', '#4ADE80', '#8B5CF6', '#F59E0B'];
+                      return {
+                        data: chartData.map((d) => d[key] || 0),
+                        label: cat,
+                        color: colors[idx % colors.length],
+                        curve: "linear",
+                      };
+                    })
                     : [
-                        { data: chartData.map((d) => d.beverages || 0), label: "Beverages", color: "#1A4D2E" },
-                        { data: chartData.map((d) => d.food || 0), label: "Food", color: "#F4A460" },
-                        { data: chartData.map((d) => d.desserts || 0), label: "Desserts", color: "#4ADE80" },
-                      ]
+                      { data: chartData.map((d) => d.beverages || 0), label: "Beverages", color: "#1A4D2E" },
+                      { data: chartData.map((d) => d.food || 0), label: "Food", color: "#F4A460" },
+                      { data: chartData.map((d) => d.desserts || 0), label: "Desserts", color: "#4ADE80" },
+                    ]
                 }
                 margin={{ left: 60, right: 20, top: 40, bottom: 40 }}
               />
@@ -354,9 +354,9 @@ export default function DashboardPage() {
             <div className="grid md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 {chartsLoading ? (
-                   Array(5).fill(0).map((_, i) => (
+                  Array(5).fill(0).map((_, i) => (
                     <div key={i} className="h-16 w-full bg-gray-50 animate-pulse rounded-2xl" />
-                   ))
+                  ))
                 ) : radarData.length > 0 ? (
                   radarData.map((product, idx) => (
                     <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-[#FDFCF7] border border-[#F1EEDB] hover:border-[#1A4D2E]/20 transition-colors group">
@@ -371,8 +371,8 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <div className="h-2 w-24 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-[#1A4D2E]" 
+                          <div
+                            className="h-full bg-[#1A4D2E]"
                             style={{ width: `${(product.orders / radarData[0].orders) * 100}%` }}
                           />
                         </div>

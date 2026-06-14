@@ -6,15 +6,42 @@ let isReady = false;
 
 exports.initialize = () => {
   try {
+    const puppeteerOptions = {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    };
+
+    if (process.env.CHROME_PATH) {
+      puppeteerOptions.executablePath = process.env.CHROME_PATH;
+    } else {
+      const os = process.platform;
+      const fs = require('fs');
+      if (os === 'darwin') {
+        const macPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+        if (fs.existsSync(macPath)) {
+          puppeteerOptions.executablePath = macPath;
+        }
+      } else if (os === 'win32') {
+        const winPath1 = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        const winPath2 = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe';
+        if (fs.existsSync(winPath1)) {
+          puppeteerOptions.executablePath = winPath1;
+        } else if (fs.existsSync(winPath2)) {
+          puppeteerOptions.executablePath = winPath2;
+        }
+      } else if (os === 'linux') {
+        const linuxPath = '/usr/bin/google-chrome';
+        if (fs.existsSync(linuxPath)) {
+          puppeteerOptions.executablePath = linuxPath;
+        }
+      }
+    }
+
     client = new Client({
       authStrategy: new LocalAuth({
         dataPath: './.wwebjs_auth'
       }),
-      puppeteer: {
-        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      }
+      puppeteer: puppeteerOptions
     });
 
     client.on('qr', (qr) => {

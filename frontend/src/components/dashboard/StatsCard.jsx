@@ -5,27 +5,24 @@ export default function StatsCard({ title, value, icon: Icon, trend, trendUp }) 
 
       <div className="flex items-center justify-between relative z-10">
         <div
-          className={`h-14 w-14 rounded-2xl backdrop-blur-md flex items-center justify-center border ${
-            title.includes("Revenue")
+          className={`h-14 w-14 rounded-2xl backdrop-blur-md flex items-center justify-center border ${title.includes("Revenue")
               ? "border-gold-400/50 bg-gold-500/10 text-gold-700"
               : "border-sage-500/30 bg-sage-500/10 text-sage-700"
-          }`}
+            }`}
         >
           <Icon className="h-7 w-7" />
         </div>
 
         {trend && (
           <div
-            className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide flex items-center gap-1 ${
-              trendUp
+            className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide flex items-center gap-1 ${trendUp
                 ? "bg-[#E8F5E9] text-[#1A4D2E]"
                 : "bg-red-50 text-red-600"
-            }`}
+              }`}
           >
             <span
-              className={`h-2 w-2 rounded-full ${
-                trendUp ? "bg-[#1A4D2E]" : "bg-red-500"
-              }`}
+              className={`h-2 w-2 rounded-full ${trendUp ? "bg-[#1A4D2E]" : "bg-red-500"
+                }`}
             />
             {trend}
           </div>
@@ -43,9 +40,8 @@ export default function StatsCard({ title, value, icon: Icon, trend, trendUp }) 
 
       <div className="mt-5 h-1.5 rounded-full bg-[#E6E9E5] overflow-hidden">
         <span
-          className={`block h-full rounded-full ${
-            trendUp ? "bg-[#1A4D2E]" : "bg-red-400"
-          }`}
+          className={`block h-full rounded-full ${trendUp ? "bg-[#1A4D2E]" : "bg-red-400"
+            }`}
           style={{ width: trendUp ? "72%" : "48%" }}
         />
       </div>

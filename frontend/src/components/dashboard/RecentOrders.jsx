@@ -55,9 +55,9 @@ export default function RecentOrders({ orders }) {
                         <p className="text-xs text-[#5F6F65]">
                           {order.createdAt
                             ? new Date(order.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
                             : "N/A"}
                         </p>
                       </div>
@@ -66,10 +66,9 @@ export default function RecentOrders({ orders }) {
                   <td className="px-6 py-5">{order.table?.name || "Takeaway"}</td>
                   <td className="px-6 py-5">
                     <span
-                      className={`px-4 py-1 rounded-full text-xs font-bold inline-flex items-center gap-2 ${
-                        statusClasses[order.status] ||
+                      className={`px-4 py-1 rounded-full text-xs font-bold inline-flex items-center gap-2 ${statusClasses[order.status] ||
                         "bg-gray-50 text-gray-600 border border-gray-100"
-                      }`}
+                        }`}
                     >
                       <span className="h-2 w-2 rounded-full bg-current" />
                       {order.status}
