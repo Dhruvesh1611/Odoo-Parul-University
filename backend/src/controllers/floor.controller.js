@@ -152,10 +152,10 @@ exports.transferTable = async (req, res) => {
         const { getIo } = require('../lib/socket');
         const io = getIo();
         if (io) {
-            io.emit('table_status_changed', { tableId: sourceTableId, status: 'AVAILABLE' });
-            io.emit('table_status_changed', { tableId: destTableId, status: 'OCCUPIED' });
-            io.emit('order_updated', updatedOrder);
-            io.emit('dashboard_updated');
+            io.to('cashier-room').to('admin-room').emit('table_status_changed', { tableId: sourceTableId, status: 'AVAILABLE' });
+            io.to('cashier-room').to('admin-room').emit('table_status_changed', { tableId: destTableId, status: 'OCCUPIED' });
+            io.to('cashier-room').to('admin-room').emit('order_updated', updatedOrder);
+            io.to('admin-room').emit('dashboard_updated');
         }
 
         res.json({ message: "Table transfer completed successfully" });
@@ -221,8 +221,8 @@ exports.freeTable = async (req, res) => {
         const { getIo } = require('../lib/socket');
         const io = getIo();
         if (io) {
-            io.emit('table_status_changed', { tableId: id, status: 'AVAILABLE' });
-            io.emit('dashboard_updated');
+            io.to('cashier-room').to('admin-room').emit('table_status_changed', { tableId: id, status: 'AVAILABLE' });
+            io.to('admin-room').emit('dashboard_updated');
         }
 
         res.json({ message: "Table has been freed successfully." });

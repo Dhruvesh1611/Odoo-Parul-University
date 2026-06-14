@@ -19,7 +19,8 @@ function sendError(res, error) {
 
 exports.getUsers = async (req, res) => {
   try {
-    const users = await userService.listUsers(req.user);
+    const { page, limit, search } = req.query;
+    const users = await userService.listUsers(req.user, page, limit, search);
     res.json(users);
   } catch (error) {
     sendError(res, error);

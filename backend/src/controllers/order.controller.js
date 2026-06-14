@@ -260,11 +260,11 @@ exports.createOrder = async (req, res) => {
     if (io) {
       if (!id) {
         // Only emit order_created on initial creation
-        io.emit('order_created', order);
+        io.to('cashier-room').to('admin-room').emit('order_created', order);
       } else {
-        io.emit('order_updated', order);
+        io.to('cashier-room').to('admin-room').emit('order_updated', order);
       }
-      io.emit('dashboard_updated');
+      io.to('admin-room').emit('dashboard_updated');
     }
 
     res.status(201).json(order);
@@ -279,10 +279,66 @@ exports.createOrder = async (req, res) => {
 
 exports.getOrders = async (req, res) => {
   try {
-    const { sessionId, status } = req.query;
+    const { sessionId, status, page, limit, search } = req.query;
     const filter = {};
     if (sessionId) filter.sessionId = sessionId;
-    if (status) filter.status = status;
+    if (status && status !== 'all') filter.status = status;
+
+    if (search) {
+      filter.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerEmail: { contains: search, mode: 'insensitive' } },
+        { customerMobile: { contains: search, mode: 'insensitive' } },
+        { table: { name: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    if (page || limit) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 20;
+      const skip = (pageNum - 1) * limitNum;
+
+      const [orders, total] = await Promise.all([
+        prisma.order.findMany({
+          where: filter,
+          include: {
+            items: {
+              select: {
+                id: true,
+                productId: true,
+                productName: true,
+                price: true,
+                variantName: true,
+                quantity: true,
+                notes: true,
+                status: true
+              }
+            },
+            table: {
+              select: { id: true, name: true, status: true }
+            },
+            user: {
+              select: { id: true, name: true, role: true }
+            }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limitNum
+        }),
+        prisma.order.count({ where: filter })
+      ]);
+
+      return res.json({
+        data: orders,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum)
+        }
+      });
+    }
 
     const orders = await prisma.order.findMany({
       where: filter,
@@ -350,14 +406,14 @@ exports.updateOrderStatus = async (req, res) => {
 
       const io = getIo();
       if (io) {
-        io.emit('table:status_updated', { tableId: order.tableId, status: 'AVAILABLE' });
+        io.to('cashier-room').to('admin-room').emit('table:status_updated', { tableId: order.tableId, status: 'AVAILABLE' });
       }
     }
 
     // Broadcast update
     const io = getIo();
     if (io) {
-      io.emit('order:status_updated', order);
+      io.to('cashier-room').to('admin-room').emit('order:status_updated', order);
     }
 
     res.json(order);
@@ -427,30 +483,43 @@ exports.payOrder = async (req, res) => {
 
         const io = getIo();
         if (io) {
-          io.emit('table_status_changed', { tableId: order.tableId, status: 'OCCUPIED' });
+          io.to('cashier-room').to('admin-room').emit('table_status_changed', { tableId: order.tableId, status: 'OCCUPIED' });
         }
       }
 
       // Emit Sockets
       const io = getIo();
       if (io) {
-        io.emit('payment_completed', { order: updatedOrder, payment });
-        io.emit('order_sent_to_kitchen', { ...updatedOrder, kitchenTicket });
-        io.emit('dashboard_updated');
+        io.to('cashier-room').to('admin-room').emit('payment_completed', { order: updatedOrder, payment });
+        io.to('kitchen-room').to('cashier-room').to('admin-room').emit('order_sent_to_kitchen', { ...updatedOrder, kitchenTicket });
+        io.to('admin-room').emit('dashboard_updated');
       }
 
-      // Send Email Receipt
-      if (updatedOrder.customerEmail) {
-        emailService.sendBill(updatedOrder).catch(err => console.error("Email failed:", err));
-      }
+      // Respond immediately
+      res.status(201).json(payment);
 
-      // Send WhatsApp Receipt
-      if (updatedOrder.customerMobile) {
-        const message = `Hello ${updatedOrder.customerName || 'Guest'},\n\nPayment successful for Order #${updatedOrder.orderNumber}.\n\nYour order has been sent to the kitchen.`;
-        whatsappService.sendReceipt(updatedOrder.customerMobile, message).catch(err => {
-          console.warn("Auto background WhatsApp failed:", err.message);
-        });
-      }
+      // Async post-payment operations
+      setImmediate(async () => {
+        // Send Email Receipt
+        if (updatedOrder.customerEmail) {
+          try {
+            await emailService.sendBill(updatedOrder);
+          } catch (err) {
+            console.error("Email failed:", err);
+          }
+        }
+
+        // Send WhatsApp Receipt
+        if (updatedOrder.customerMobile) {
+          try {
+            const message = `Hello ${updatedOrder.customerName || 'Guest'},\n\nPayment successful for Order #${updatedOrder.orderNumber}.\n\nYour order has been sent to the kitchen.`;
+            await whatsappService.sendReceipt(updatedOrder.customerMobile, message);
+          } catch (err) {
+            console.warn("Auto background WhatsApp failed:", err.message);
+          }
+        }
+      });
+      return;
     }
 
     res.status(201).json(payment);

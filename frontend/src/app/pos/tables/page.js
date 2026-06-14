@@ -34,7 +34,7 @@ export default function TablesPage() {
 
     // Socket.IO Integration
     const socket = getSocket();
-    socket.emit('join', 'cashier');
+    socket.emit('join', 'cashier-room');
 
     socket.on('table_status_changed', (data) => {
       console.log('📶 Table status updated via socket:', data);
@@ -52,7 +52,6 @@ export default function TablesPage() {
       console.log('📶 Kitchen completed via socket:', order);
       if (order.table) {
         showToast(`Order #${order.orderNumber?.slice(-3) || 'POS'} is READY for ${order.table.name}!`, 'info');
-        fetchFloors();
       }
     });
 

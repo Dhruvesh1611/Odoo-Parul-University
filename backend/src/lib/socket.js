@@ -16,8 +16,13 @@ const initSocket = (server) => {
 
     // Allow clients to join specific rooms (e.g. 'kitchen', 'cashier')
     socket.on('join', (room) => {
-      console.log(`👤 Client ${socket.id} joined room: ${room}`);
-      socket.join(room);
+      let finalRoom = room;
+      if (room === 'admin') finalRoom = 'admin-room';
+      else if (room === 'cashier') finalRoom = 'cashier-room';
+      else if (room === 'kitchen') finalRoom = 'kitchen-room';
+
+      console.log(`👤 Client ${socket.id} joined room: ${finalRoom}`);
+      socket.join(finalRoom);
     });
 
     socket.on('disconnect', () => {

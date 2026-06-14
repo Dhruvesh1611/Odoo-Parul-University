@@ -56,7 +56,7 @@ export default function KitchenPage() {
 
     // Socket.IO Integration
     const socket = getSocket();
-    socket.emit('join', 'kitchen');
+    socket.emit('join', 'kitchen-room');
 
     socket.on('order_sent_to_kitchen', (newOrder) => {
       console.log('📶 New order received via socket in KDS:', newOrder);

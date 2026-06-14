@@ -94,8 +94,9 @@ exports.updateKitchenStatus = async (req, res) => {
 
     if (status === 'PREPARING') {
       if (io) {
-        io.emit('kitchen_preparing', orderForFrontend);
-        io.emit('dashboard_updated');
+        io.to('kitchen-room').to('cashier-room').to('admin-room').emit('kitchen_preparing', orderForFrontend);
+        io.to('cashier-room').emit('kitchen_status_changed', { orderId: id, status: 'PREPARING' });
+        io.to('admin-room').emit('dashboard_updated');
       }
       // Send WhatsApp progress notification
       if (updatedTicket.order.customerMobile) {
@@ -106,8 +107,9 @@ exports.updateKitchenStatus = async (req, res) => {
       }
     } else if (status === 'COMPLETED') {
       if (io) {
-        io.emit('kitchen_completed', orderForFrontend);
-        io.emit('dashboard_updated');
+        io.to('kitchen-room').to('cashier-room').to('admin-room').emit('kitchen_completed', orderForFrontend);
+        io.to('cashier-room').emit('kitchen_status_changed', { orderId: id, status: 'COMPLETED' });
+        io.to('admin-room').emit('dashboard_updated');
       }
       // Send WhatsApp ready notification
       if (updatedTicket.order.customerMobile) {
@@ -125,13 +127,14 @@ exports.updateKitchenStatus = async (req, res) => {
         });
 
         if (io) {
-          io.emit('table_status_changed', { tableId: updatedTicket.order.tableId, status: 'AVAILABLE' });
+          io.to('cashier-room').to('admin-room').emit('table_status_changed', { tableId: updatedTicket.order.tableId, status: 'AVAILABLE' });
         }
       }
 
       if (io) {
-        io.emit('table_released', { orderId: id, tableId: updatedTicket.order.tableId });
-        io.emit('dashboard_updated');
+        io.to('kitchen-room').to('cashier-room').to('admin-room').emit('table_released', { orderId: id, tableId: updatedTicket.order.tableId });
+        io.to('cashier-room').emit('kitchen_status_changed', { orderId: id, status: 'SERVED' });
+        io.to('admin-room').emit('dashboard_updated');
       }
     }
 
