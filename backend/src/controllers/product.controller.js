@@ -58,6 +58,27 @@ exports.deleteCategory = async (req, res) => {
     }
 };
 
+exports.getProductsStats = async (req, res) => {
+    try {
+        const [total, available, kitchen, avgPriceData] = await Promise.all([
+            prisma.product.count(),
+            prisma.product.count({ where: { isAvailable: true } }),
+            prisma.product.count({ where: { sendToKitchen: true } }),
+            prisma.product.aggregate({
+                _avg: { price: true }
+            })
+        ]);
+        res.json({
+            total,
+            available,
+            kitchen,
+            avgPrice: Number(avgPriceData._avg.price || 0)
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 // Product Controllers
 exports.createProduct = async (req, res) => {
     try {
@@ -89,8 +110,42 @@ exports.createProduct = async (req, res) => {
 
 exports.getProducts = async (req, res) => {
     try {
-        const { categoryId } = req.query;
-        const filter = categoryId ? { categoryId } : {};
+        const { categoryId, page, limit, search } = req.query;
+        const filter = {};
+        if (categoryId && categoryId !== 'all') filter.categoryId = categoryId;
+        if (search) {
+            filter.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+
+        if (page || limit) {
+            const pageNum = parseInt(page) || 1;
+            const limitNum = parseInt(limit) || 20;
+            const skip = (pageNum - 1) * limitNum;
+
+            const [products, total] = await Promise.all([
+                prisma.product.findMany({
+                    where: filter,
+                    include: { variants: true, category: true },
+                    orderBy: { createdAt: 'desc' },
+                    skip,
+                    take: limitNum
+                }),
+                prisma.product.count({ where: filter })
+            ]);
+
+            return res.json({
+                data: products,
+                pagination: {
+                    total,
+                    page: pageNum,
+                    limit: limitNum,
+                    totalPages: Math.ceil(total / limitNum)
+                }
+            });
+        }
 
         const products = await prisma.product.findMany({
             where: filter,

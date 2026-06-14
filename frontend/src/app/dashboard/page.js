@@ -51,31 +51,101 @@ export default function DashboardPage() {
   /* ✅ Socket Listener for Real-Time Updates */
   useEffect(() => {
     const socket = getSocket();
-    socket.emit('join', 'admin');
+    socket.emit('join', 'admin-room');
 
-    const handleSocketUpdate = (data) => {
-      console.log("📶 Real-time dashboard update received:", data);
+    const handleOrderCreated = (order) => {
+      console.log("📶 Order created via socket:", order);
+      setRecentOrders((prev) => [order, ...prev].slice(0, 5));
+      setStats((prev) => {
+        if (!prev) return prev;
+        const isSent = order.status === 'SENT';
+        return {
+          ...prev,
+          pendingOrders: isSent ? prev.pendingOrders + 1 : prev.pendingOrders,
+          periodOrders: prev.periodOrders + 1,
+          totalOrders: prev.totalOrders + 1
+        };
+      });
+    };
+
+    const handlePaymentCompleted = (data) => {
+      console.log("📶 Payment completed via socket:", data);
+      const { order } = data;
+      setRecentOrders((prev) => prev.map(o => o.id === order.id ? { ...o, status: order.status } : o));
+      setStats((prev) => {
+        if (!prev) return prev;
+        const amount = Number(order.totalAmount) || 0;
+        return {
+          ...prev,
+          totalRevenue: prev.totalRevenue + amount,
+          periodRevenue: prev.periodRevenue + amount,
+          completedOrders: prev.completedOrders + 1,
+          pendingOrders: Math.max(0, prev.pendingOrders - 1)
+        };
+      });
+    };
+
+    const handleKitchenPreparing = (order) => {
+      console.log("📶 Order preparing in kitchen:", order);
+      setStats((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          pendingOrders: Math.max(0, prev.pendingOrders - 1),
+          preparingOrders: prev.preparingOrders + 1
+        };
+      });
+    };
+
+    const handleKitchenCompleted = (order) => {
+      console.log("📶 Order completed in kitchen:", order);
+      setStats((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          preparingOrders: Math.max(0, prev.preparingOrders - 1),
+          completedOrders: prev.completedOrders + 1
+        };
+      });
+    };
+
+    const handleTableStatusChanged = (data) => {
+      console.log("📶 Table status changed via socket:", data);
+      setStats((prev) => {
+        if (!prev) return prev;
+        const isOccupied = data.status === 'OCCUPIED';
+        const isAvailable = data.status === 'AVAILABLE';
+        return {
+          ...prev,
+          occupiedTables: isOccupied ? prev.occupiedTables + 1 : (isAvailable ? Math.max(0, prev.occupiedTables - 1) : prev.occupiedTables),
+          availableTables: isAvailable ? prev.availableTables + 1 : (isOccupied ? Math.max(0, prev.availableTables - 1) : prev.availableTables)
+        };
+      });
+    };
+
+    const handleGenericUpdate = () => {
+      console.log("📶 Generic dashboard update trigger");
       setRefreshKey((prev) => prev + 1);
     };
 
-    socket.on('order_created', handleSocketUpdate);
-    socket.on('payment_completed', handleSocketUpdate);
-    socket.on('order_sent_to_kitchen', handleSocketUpdate);
-    socket.on('kitchen_preparing', handleSocketUpdate);
-    socket.on('kitchen_completed', handleSocketUpdate);
-    socket.on('table_released', handleSocketUpdate);
-    socket.on('table_status_changed', handleSocketUpdate);
-    socket.on('dashboard_updated', handleSocketUpdate);
+    socket.on('order_created', handleOrderCreated);
+    socket.on('payment_completed', handlePaymentCompleted);
+    socket.on('order_sent_to_kitchen', handleGenericUpdate);
+    socket.on('kitchen_preparing', handleKitchenPreparing);
+    socket.on('kitchen_completed', handleKitchenCompleted);
+    socket.on('table_released', handleGenericUpdate);
+    socket.on('table_status_changed', handleTableStatusChanged);
+    socket.on('dashboard_updated', handleGenericUpdate);
 
     return () => {
-      socket.off('order_created', handleSocketUpdate);
-      socket.off('payment_completed', handleSocketUpdate);
-      socket.off('order_sent_to_kitchen', handleSocketUpdate);
-      socket.off('kitchen_preparing', handleSocketUpdate);
-      socket.off('kitchen_completed', handleSocketUpdate);
-      socket.off('table_released', handleSocketUpdate);
-      socket.off('table_status_changed', handleSocketUpdate);
-      socket.off('dashboard_updated', handleSocketUpdate);
+      socket.off('order_created', handleOrderCreated);
+      socket.off('payment_completed', handlePaymentCompleted);
+      socket.off('order_sent_to_kitchen', handleGenericUpdate);
+      socket.off('kitchen_preparing', handleKitchenPreparing);
+      socket.off('kitchen_completed', handleKitchenCompleted);
+      socket.off('table_released', handleGenericUpdate);
+      socket.off('table_status_changed', handleTableStatusChanged);
+      socket.off('dashboard_updated', handleGenericUpdate);
     };
   }, []);
 
@@ -159,7 +229,7 @@ export default function DashboardPage() {
     };
 
     if (token) fetchChartData();
-  }, [activeRange, token, refreshKey]);
+  }, [activeRange, token]);
 
   /* ✅ Timeframes */
   const timeframeOptions = [

@@ -21,39 +21,95 @@ import { usePopup } from "@/context/PopupContext";
 export default function ProductsPage() {
   const { showToast, showAlert, showConfirm } = usePopup();
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProductsCount, setTotalProductsCount] = useState(0);
+  const [stats, setStats] = useState({
+    total: 0,
+    available: 0,
+    kitchen: 0,
+    avgPrice: 0
+  });
+
+  // Debounce search input
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset page on new search
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   useEffect(() => {
-    fetchProducts();
     fetchCategories();
+    fetchStats();
   }, []);
 
   useEffect(() => {
-    filterProducts();
-  }, [searchQuery, categoryFilter, products]);
+    fetchProducts();
+  }, [currentPage, categoryFilter, debouncedSearchQuery]);
+
+  const fetchStats = async () => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/products/stats`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch product stats:', error);
+    }
+  };
 
   const fetchProducts = async () => {
+    setLoading(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`${API_URL}/products`, {
+      const queryParams = new URLSearchParams({
+        page: currentPage,
+        limit: 20
+      });
+
+      if (categoryFilter !== 'all') {
+        queryParams.append('categoryId', categoryFilter);
+      }
+      if (debouncedSearchQuery) {
+        queryParams.append('search', debouncedSearchQuery);
+      }
+
+      const response = await fetch(`${API_URL}/products?${queryParams.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
+        const result = await response.json();
+        if (result.data && result.pagination) {
+          setProducts(result.data);
+          setTotalPages(result.pagination.totalPages || 1);
+          setTotalProductsCount(result.pagination.total || 0);
+        } else {
+          setProducts(result);
+          setTotalPages(1);
+          setTotalProductsCount(result.length || 0);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     } finally {
+      setLoading(true); // wait, let's keep loading false
       setLoading(false);
     }
   };
@@ -76,21 +132,9 @@ export default function ProductsPage() {
     }
   };
 
-  const filterProducts = () => {
-    let filtered = [...products];
-
-    if (searchQuery) {
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter(p => p.category?.id === categoryFilter);
-    }
-
-    setFilteredProducts(filtered);
+  const handleCategoryFilterChange = (categoryId) => {
+    setCategoryFilter(categoryId);
+    setCurrentPage(1);
   };
 
   const ProductModal = ({ product, onClose, onSave }) => {
@@ -440,6 +484,7 @@ export default function ProductsPage() {
 
       if (response.ok) {
         fetchProducts();
+        fetchStats();
         setShowAddModal(false);
         setEditingProduct(null);
         showToast("Product saved successfully!", "success");
@@ -470,6 +515,7 @@ export default function ProductsPage() {
       if (response.ok) {
         showToast("Product deleted successfully!", "success");
         fetchProducts();
+        fetchStats();
       } else {
         const err = await response.json();
         console.error("Backend Error:", err);
@@ -511,30 +557,21 @@ export default function ProductsPage() {
   };
 
   const menuStats = useMemo(() => {
-    const total = products.length;
-    const available = products.filter((p) => p.isAvailable).length;
-    const kitchen = products.filter((p) => p.sendToKitchen).length;
-    const categorySet = new Set(products.map((p) => p.category?.id).filter(Boolean));
-    const avgPrice =
-      total > 0
-        ? products.reduce((sum, p) => sum + Number(p.price || 0), 0) / total
-        : 0;
-
     return {
-      total,
-      available,
-      kitchen,
-      categories: categorySet.size,
-      avgPrice,
+      total: stats.total,
+      available: stats.available,
+      kitchen: stats.kitchen,
+      categories: categories.length,
+      avgPrice: stats.avgPrice,
     };
-  }, [products]);
+  }, [stats, categories]);
 
   const categoryPills = useMemo(() => {
     const pills = [
       {
         id: "all",
         name: "All Menu",
-        count: products.length,
+        count: stats.total,
       },
     ];
 
@@ -542,12 +579,12 @@ export default function ProductsPage() {
       pills.push({
         id: cat.id,
         name: cat.name,
-        count: products.filter((p) => p.category?.id === cat.id).length,
+        count: cat._count?.products || 0,
       });
     });
 
     return pills;
-  }, [categories, products]);
+  }, [categories, stats.total]);
 
   const quickStats = useMemo(() => [
     {
@@ -711,8 +748,8 @@ export default function ProductsPage() {
             />
           </div>
           <div className="text-sm text-[#5F6F65]">
-            Showing <span className="font-semibold text-[#1A4D2E]">{filteredProducts.length}</span> of
-            <span className="font-semibold text-[#1A4D2E]"> {products.length}</span> products
+            Showing <span className="font-semibold text-[#1A4D2E]">{products.length}</span> of
+            <span className="font-semibold text-[#1A4D2E]"> {totalProductsCount}</span> products
           </div>
         </div>
 
@@ -722,7 +759,7 @@ export default function ProductsPage() {
             return (
               <button
                 key={pill.id}
-                onClick={() => setCategoryFilter(pill.id)}
+                onClick={() => handleCategoryFilterChange(pill.id)}
                 className={`px-4 py-2 rounded-full border text-sm font-semibold flex items-center gap-2 transition ${isActive
                   ? "bg-[#1A4D2E] text-white border-transparent shadow"
                   : "bg-white text-[#1A4D2E] border-coffee-100 hover:border-coffee-200"
@@ -743,7 +780,7 @@ export default function ProductsPage() {
 
       {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredProducts.map((product) => {
+        {products.map((product) => {
           const categoryColorBg = getCategoryColor(product.category?.name);
           const categoryFooterClass = getCategoryStyle(product.category?.name);
 
@@ -838,8 +875,87 @@ export default function ProductsPage() {
         })}
       </div>
 
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-16 rounded-[32px] bg-gradient-to-br from-[#FFF9F0] to-[#F1F6EF] border border-[#F0E7D5]">
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-coffee-100 bg-white px-6 py-4 rounded-[32px] mt-6 shadow-sm">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-750 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-750 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-[#5F6F65]">
+                Showing Page <span className="font-semibold text-[#1A4D2E]">{currentPage}</span> of{" "}
+                <span className="font-semibold text-[#1A4D2E]">{totalPages}</span> (Total {totalProductsCount} items)
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white" aria-label="Pagination">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-[#1A4D2E] ring-1 ring-inset ring-coffee-100 hover:bg-[#F8F5ED] disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 2 && page <= currentPage + 2)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                          page === currentPage
+                            ? "z-10 bg-[#1A4D2E] text-white focus:z-20"
+                            : "text-[#1A4D2E] ring-1 ring-inset ring-coffee-100 hover:bg-[#F8F5ED] focus:z-20"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (page === currentPage - 3 || page === currentPage + 3) {
+                    return (
+                      <span
+                        key={page}
+                        className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-750 ring-1 ring-inset ring-coffee-100"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-[#1A4D2E] ring-1 ring-inset ring-coffee-100 hover:bg-[#F8F5ED] disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {products.length === 0 && (
+        <div className="text-center py-16 rounded-[32px] bg-gradient-to-br from-[#FFF9F0] to-[#F1F6EF] border border-[#F0E7D5] mt-6">
           <Coffee className="h-16 w-16 text-[#C0A074]/40 mx-auto mb-4" />
           <p className="text-[#5F6F65] text-lg">No products match this view</p>
           <p className="text-[#9DA5A0] text-sm">Try another category or keyword.</p>
@@ -860,3 +976,4 @@ export default function ProductsPage() {
     </div>
   );
 }
+

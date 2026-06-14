@@ -14,5 +14,6 @@ router.get('/sales-trends', dashboardController.getSalesTrends);
 router.get('/top-products', dashboardController.getTopProducts);
 router.get('/heatmap-data', dashboardController.getHeatmapData);
 router.get('/employee-performance', dashboardController.getEmployeePerformance);
+router.get('/customers', dashboardController.getCustomers);
 
 module.exports = router;

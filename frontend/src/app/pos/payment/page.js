@@ -30,7 +30,7 @@ export default function POSPaymentPage() {
     fetchOrderDetails();
 
     const socket = getSocket();
-    socket.emit('join', 'cashier');
+    socket.emit('join', 'cashier-room');
 
     const handleUpdate = (updatedOrder) => {
       const payingOrderId = localStorage.getItem('payingOrderId');

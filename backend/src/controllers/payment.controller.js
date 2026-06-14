@@ -164,33 +164,42 @@ exports.verifyRazorpayPayment = async (req, res) => {
       // Emit Table Sockets
       const io = getIo();
       if (io) {
-        io.emit('table_status_changed', { tableId: order.tableId, status: 'OCCUPIED' });
+        io.to('cashier-room').to('admin-room').emit('table_status_changed', { tableId: order.tableId, status: 'OCCUPIED' });
       }
     }
 
     // Emit Order, Payment, and Kitchen Sockets
     const io = getIo();
     if (io) {
-      io.emit('payment_completed', { order: updatedOrder, payment });
-      io.emit('order_sent_to_kitchen', { ...updatedOrder, kitchenTicket });
-      io.emit('dashboard_updated');
+      io.to('cashier-room').to('admin-room').emit('payment_completed', { order: updatedOrder, payment });
+      io.to('kitchen-room').to('cashier-room').to('admin-room').emit('order_sent_to_kitchen', { ...updatedOrder, kitchenTicket });
+      io.to('admin-room').emit('dashboard_updated');
     }
 
-    // Send Email Receipt (fire-and-forget)
-    if (updatedOrder.customerEmail) {
-      emailService.sendBill(updatedOrder).catch(err => console.error("Email failed:", err));
-    }
-
-    // Send WhatsApp Receipt (fire-and-forget)
-    if (updatedOrder.customerMobile) {
-      const message = `Hello ${updatedOrder.customerName || 'Guest'},\n\nPayment successful for Order #${updatedOrder.orderNumber}.\n\nYour order has been sent to the kitchen.`;
-
-      whatsappService.sendReceipt(updatedOrder.customerMobile, message).catch(err => {
-        console.warn("Auto background WhatsApp failed:", err.message);
-      });
-    }
-
+    // Respond immediately
     res.json({ success: true, payment });
+
+    // Async post-payment operations
+    setImmediate(async () => {
+      // Send Email Receipt
+      if (updatedOrder.customerEmail) {
+        try {
+          await emailService.sendBill(updatedOrder);
+        } catch (err) {
+          console.error("Email failed:", err);
+        }
+      }
+
+      // Send WhatsApp Receipt
+      if (updatedOrder.customerMobile) {
+        try {
+          const message = `Hello ${updatedOrder.customerName || 'Guest'},\n\nPayment successful for Order #${updatedOrder.orderNumber}.\n\nYour order has been sent to the kitchen.`;
+          await whatsappService.sendReceipt(updatedOrder.customerMobile, message);
+        } catch (err) {
+          console.warn("Auto background WhatsApp failed:", err.message);
+        }
+      }
+    });
   } catch (error) {
     console.error("Razorpay verification error:", error);
     res.status(500).json({ error: error.message });

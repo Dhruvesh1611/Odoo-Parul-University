@@ -22,11 +22,28 @@ import CoffeeLoader from "@/components/ui/CoffeeLoader";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
-  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrdersCount, setTotalOrdersCount] = useState(0);
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    pendingOrders: 0,
+    preparingOrders: 0,
+    completedOrders: 0,
+    periodRevenue: 0,
+    SENT: 0,
+    PREPARING: 0,
+    COMPLETED: 0,
+    PAID: 0,
+    CANCELLED: 0,
+    DRAFT: 0
+  });
+
   const statusOptions = [
     "all",
     "SENT",
@@ -37,29 +54,79 @@ export default function OrdersPage() {
     "DRAFT",
   ];
 
+  // Debounce search query
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+      setCurrentPage(1); // Reset to page 1 on new search
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-  useEffect(() => {
-    filterOrders();
-  }, [searchQuery, statusFilter, orders]);
+  // Fetch stats once on mount, or when status/search updates to keep metrics in sync
+  const fetchStats = async () => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/dashboard/stats?range=day`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          totalOrders: data.periodOrders || 0,
+          pendingOrders: data.pendingOrders || 0,
+          preparingOrders: data.preparingOrders || 0,
+          completedOrders: data.completedOrders || 0,
+          periodRevenue: data.periodRevenue || 0,
+          SENT: data.pendingOrders || 0,
+          PREPARING: data.preparingOrders || 0,
+          COMPLETED: data.completedOrders || 0,
+          PAID: data.completedOrders || 0,
+          CANCELLED: 0, // Fallbacks as stats endpoints group paid/completed
+          DRAFT: 0
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
 
   const fetchOrders = async () => {
+    setLoading(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`${API_URL}/orders`, {
+      const queryParams = new URLSearchParams({
+        page: currentPage,
+        limit: 20,
+        status: statusFilter
+      });
+
+      if (debouncedSearchQuery) {
+        queryParams.append('search', debouncedSearchQuery);
+      }
+
+      const response = await fetch(`${API_URL}/orders?${queryParams.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setOrders(data);
-        setFilteredOrders(data);
+        const result = await response.json();
+        if (result.data && result.pagination) {
+          setOrders(result.data);
+          setTotalPages(result.pagination.totalPages || 1);
+          setTotalOrdersCount(result.pagination.total || 0);
+        } else {
+          setOrders(result);
+          setTotalPages(1);
+          setTotalOrdersCount(result.length || 0);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
@@ -68,23 +135,17 @@ export default function OrdersPage() {
     }
   };
 
-  const filterOrders = () => {
-    let filtered = [...orders];
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
-    //Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(order =>
-        order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.table?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+  useEffect(() => {
+    fetchOrders();
+  }, [currentPage, statusFilter, debouncedSearchQuery]);
 
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(order => order.status === statusFilter);
-    }
-
-    setFilteredOrders(filtered);
+  const handleStatusFilterChange = (status) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
   };
 
   const getStatusBadgeClass = (status) => {
@@ -121,23 +182,26 @@ export default function OrdersPage() {
   );
 
   const statusSummary = useMemo(() => {
-    const summary = { total: orders.length, revenue: 0 };
-    orders.forEach((order) => {
-      const statusKey = order.status || "UNKNOWN";
-      summary[statusKey] = (summary[statusKey] || 0) + 1;
-      summary.revenue += Number(order.totalAmount) || 0;
-    });
-    return summary;
-  }, [orders]);
+    return {
+      total: stats.totalOrders,
+      SENT: stats.SENT,
+      PREPARING: stats.PREPARING,
+      COMPLETED: stats.COMPLETED,
+      PAID: stats.PAID,
+      CANCELLED: stats.CANCELLED,
+      DRAFT: stats.DRAFT,
+      revenue: stats.periodRevenue
+    };
+  }, [stats]);
 
-  const progressOrders = (statusSummary.PREPARING || 0) + (statusSummary.SENT || 0);
-  const completedOrders = (statusSummary.COMPLETED || 0) + (statusSummary.PAID || 0);
+  const progressOrders = stats.pendingOrders + stats.preparingOrders;
+  const completedOrders = stats.completedOrders;
 
   const quickStats = [
     {
       id: "total",
       label: "Total Orders",
-      value: statusSummary.total || 0,
+      value: stats.totalOrders,
       hint: "Across every channel",
       icon: Coffee,
       iconClasses: "bg-white/80 text-[#1A4D2E]",
@@ -146,31 +210,31 @@ export default function OrdersPage() {
       id: "progress",
       label: "In Progress",
       value: progressOrders,
-      hint: `${statusSummary.PREPARING || 0} in kitchen, ${statusSummary.SENT || 0} en route`,
+      hint: `${stats.preparingOrders} in kitchen, ${stats.pendingOrders} en route`,
       icon: Activity,
       iconClasses: "bg-[#FDF2E9] text-[#D47C2F]",
       progress:
-        statusSummary.total > 0
-          ? Math.min(100, (progressOrders / statusSummary.total) * 100)
+        stats.totalOrders > 0
+          ? Math.min(100, (progressOrders / stats.totalOrders) * 100)
           : 0,
     },
     {
       id: "completed",
       label: "Completed",
       value: completedOrders,
-      hint: `${statusSummary.COMPLETED || 0} served, ${statusSummary.PAID || 0} paid`,
+      hint: `Served and paid orders`,
       icon: CheckCircle2,
       iconClasses: "bg-[#E8F5E9] text-[#1A4D2E]",
       progress:
-        statusSummary.total > 0
-          ? Math.min(100, (completedOrders / statusSummary.total) * 100)
+        stats.totalOrders > 0
+          ? Math.min(100, (completedOrders / stats.totalOrders) * 100)
           : 0,
     },
     {
       id: "revenue",
       label: "Revenue Today",
-      value: formatCurrency(statusSummary.revenue || 0),
-      hint: "Gross sales generated",
+      value: formatCurrency(stats.periodRevenue),
+      hint: "Gross sales generated today",
       icon: DollarSign,
       iconClasses: "bg-[#F3F1E2] text-[#B47D37]",
     },
@@ -585,12 +649,12 @@ export default function OrdersPage() {
           {statusOptions.map((status) => {
             const isActive = statusFilter === status;
             const label = status === "all" ? "All" : status;
-            const count = status === "all" ? statusSummary.total : statusSummary[status] || 0;
+            const count = status === "all" ? stats.totalOrders : (stats[status] || 0);
 
             return (
               <button
                 key={status}
-                onClick={() => setStatusFilter(status)}
+                onClick={() => handleStatusFilterChange(status)}
                 className={`px-4 py-2 rounded-full border text-sm font-semibold flex items-center gap-2 transition ${isActive
                   ? "bg-[#1A4D2E] text-white border-transparent shadow"
                   : "bg-white text-[#1A4D2E] border-coffee-100 hover:border-coffee-200"
@@ -610,8 +674,8 @@ export default function OrdersPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-coffee-100 pt-4 text-sm text-[#5F6F65]">
           <p>
-            Showing <span className="font-semibold text-[#1A4D2E]">{filteredOrders.length}</span> of
-            <span className="font-semibold text-[#1A4D2E]"> {orders.length}</span> orders
+            Showing <span className="font-semibold text-[#1A4D2E]">{orders.length}</span> of
+            <span className="font-semibold text-[#1A4D2E]"> {totalOrdersCount}</span> orders
           </p>
           <span className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-cream-200 text-[#1A4D2E] text-xs font-semibold">
             {statusFilter === "all" ? "All orders" : `${statusFilter} queue`}
@@ -621,84 +685,165 @@ export default function OrdersPage() {
 
       {/* Orders Table */}
       <section className="rounded-[40px] bg-white/95 backdrop-blur border border-white shadow-[0_35px_80px_rgba(26,77,46,0.08)] overflow-hidden">
-        {filteredOrders.length === 0 ? (
+        {orders.length === 0 ? (
           <div className="text-center py-20 space-y-3">
             <Coffee className="h-10 w-10 text-coffee-200 mx-auto" />
             <p className="text-coffee-600/70 text-lg">No orders match this view</p>
             <p className="text-sm text-coffee-500">Try changing the filters or search query.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="text-xs uppercase tracking-[0.35em] text-[#5F6F65]/70 bg-[#F7F4EA]">
-                <tr>
-                  {[
-                    "Order #",
-                    "Customer",
-                    "Table",
-                    "Status",
-                    "Items",
-                    "Total",
-                    "Time",
-                    "",
-                  ].map((head) => (
-                    <th key={head} className="px-6 py-4 text-left font-semibold">
-                      {head}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gold-500/20">
-                {filteredOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="transition hover:bg-[#F8F5ED]"
-                  >
-                    <td className="px-6 py-4 font-semibold text-[#1A4D2E]">
-                      <div className="flex items-center gap-3">
-                        <span className="h-2 w-2 rounded-full bg-[#1A4D2E]" />
-                        #{order.orderNumber?.slice(-6) || order.id.slice(0, 6)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-[#1A4D2E]/80">
-                      {order.customerName || "Walk-in"}
-                    </td>
-                    <td className="px-6 py-4 text-[#1A4D2E]/80">
-                      {order.table?.name || "N/A"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(
-                          order.status
-                        )}`}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-[#1A4D2E]/80">
-                      {order.items?.length || 0} items
-                    </td>
-                    <td className="px-6 py-4 font-bold text-[#1A4D2E]">
-                      {formatCurrency(Number(order.totalAmount))}
-                    </td>
-                    <td className="px-6 py-4 text-[#5F6F65]/70 text-sm">
-                      {order.createdAt
-                        ? new Date(order.createdAt).toLocaleString()
-                        : "N/A"}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="p-2 rounded-2xl border border-coffee-100 hover:border-coffee-300 transition"
-                      >
-                        <Eye className="h-5 w-5 text-coffee-700" />
-                      </button>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="text-xs uppercase tracking-[0.35em] text-[#5F6F65]/70 bg-[#F7F4EA]">
+                  <tr>
+                    {[
+                      "Order #",
+                      "Customer",
+                      "Table",
+                      "Status",
+                      "Items",
+                      "Total",
+                      "Time",
+                      "",
+                    ].map((head) => (
+                      <th key={head} className="px-6 py-4 text-left font-semibold">
+                        {head}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gold-500/20">
+                  {orders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="transition hover:bg-[#F8F5ED]"
+                    >
+                      <td className="px-6 py-4 font-semibold text-[#1A4D2E]">
+                        <div className="flex items-center gap-3">
+                          <span className="h-2 w-2 rounded-full bg-[#1A4D2E]" />
+                          #{order.orderNumber?.slice(-6) || order.id.slice(0, 6)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-[#1A4D2E]/80">
+                        {order.customerName || "Walk-in"}
+                      </td>
+                      <td className="px-6 py-4 text-[#1A4D2E]/80">
+                        {order.table?.name || "N/A"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${getStatusBadgeClass(
+                            order.status
+                          )}`}
+                        >
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-[#1A4D2E]/80">
+                        {order.items?.length || 0} items
+                      </td>
+                      <td className="px-6 py-4 font-bold text-[#1A4D2E]">
+                        {formatCurrency(Number(order.totalAmount))}
+                      </td>
+                      <td className="px-6 py-4 text-[#5F6F65]/70 text-sm">
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleString()
+                          : "N/A"}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="p-2 rounded-2xl border border-coffee-100 hover:border-coffee-300 transition"
+                        >
+                          <Eye className="h-5 w-5 text-coffee-700" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-coffee-100 bg-white px-6 py-4">
+                <div className="flex flex-1 justify-between sm:hidden">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-750 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-750 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-[#5F6F65]">
+                      Showing Page <span className="font-semibold text-[#1A4D2E]">{currentPage}</span> of{" "}
+                      <span className="font-semibold text-[#1A4D2E]">{totalPages}</span> (Total {totalOrdersCount} orders)
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm bg-white" aria-label="Pagination">
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center rounded-l-xl px-3 py-2 text-[#1A4D2E] ring-1 ring-inset ring-coffee-100 hover:bg-[#F8F5ED] disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                        if (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 2 && page <= currentPage + 2)
+                        ) {
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                                page === currentPage
+                                  ? "z-10 bg-[#1A4D2E] text-white focus:z-20"
+                                  : "text-[#1A4D2E] ring-1 ring-inset ring-coffee-100 hover:bg-[#F8F5ED] focus:z-20"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        } else if (page === currentPage - 3 || page === currentPage + 3) {
+                          return (
+                            <span
+                              key={page}
+                              className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-750 ring-1 ring-inset ring-coffee-100"
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })}
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="relative inline-flex items-center rounded-r-xl px-3 py-2 text-[#1A4D2E] ring-1 ring-inset ring-coffee-100 hover:bg-[#F8F5ED] disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -709,3 +854,4 @@ export default function OrdersPage() {
     </div>
   );
 }
+

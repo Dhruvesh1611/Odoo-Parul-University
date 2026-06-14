@@ -129,9 +129,24 @@ exports.getRecentOrders = async (req, res) => {
       },
       take: 5,
       orderBy: { createdAt: 'desc' },
-      include: {
-        table: true,
-        user: { select: { name: true } }
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        totalAmount: true,
+        createdAt: true,
+        customerName: true,
+        table: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        user: {
+          select: {
+            name: true
+          }
+        }
       }
     });
 
@@ -218,12 +233,19 @@ exports.getSalesTrends = async (req, res) => {
         status: { in: ['PAID', 'COMPLETED'] },
         user: shopId ? { shopId } : undefined
       },
-      include: {
+      select: {
+        createdAt: true,
         items: {
-          include: {
+          select: {
+            price: true,
+            quantity: true,
             product: {
-              include: {
-                category: true
+              select: {
+                category: {
+                  select: {
+                    name: true
+                  }
+                }
               }
             }
           }
@@ -468,5 +490,85 @@ exports.getEmployeePerformance = async (req, res) => {
   } catch (error) {
     console.error('Employee performance error:', error);
     res.status(500).json({ error: 'Failed to fetch employee performance' });
+  }
+};
+
+exports.getCustomers = async (req, res) => {
+  try {
+    const shopId = req.user.shopId;
+    const { page = 1, limit = 20, search } = req.query;
+
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    const skip = (pageNum - 1) * limitNum;
+
+    let orderWhere = {};
+    if (shopId) {
+      const shopUsers = await prisma.user.findMany({
+        where: { shopId },
+        select: { id: true }
+      });
+      const userIds = shopUsers.map(u => u.id);
+      orderWhere = { userId: { in: userIds } };
+    }
+
+    const whereClause = {
+      ...orderWhere,
+      OR: [
+        { customerEmail: { not: null, not: "" } },
+        { customerMobile: { not: null, not: "" } },
+        { customerName: { not: null, not: "" } }
+      ]
+    };
+
+    if (search) {
+      whereClause.AND = {
+        OR: [
+          { customerName: { contains: search, mode: 'insensitive' } },
+          { customerEmail: { contains: search, mode: 'insensitive' } },
+          { customerMobile: { contains: search, mode: 'insensitive' } }
+        ]
+      };
+    }
+
+    const groupedCustomers = await prisma.order.groupBy({
+      by: ['customerEmail', 'customerName', 'customerMobile'],
+      where: whereClause,
+      _sum: {
+        totalAmount: true
+      },
+      _count: {
+        id: true
+      },
+      orderBy: {
+        _sum: {
+          totalAmount: 'desc'
+        }
+      }
+    });
+
+    const allCustomers = groupedCustomers.map(c => ({
+      name: c.customerName || 'Guest Customer',
+      email: c.customerEmail || 'N/A',
+      mobile: c.customerMobile || 'N/A',
+      totalOrders: c._count.id,
+      totalSpent: Number(c._sum.totalAmount || 0)
+    }));
+
+    const total = allCustomers.length;
+    const paginatedCustomers = allCustomers.slice(skip, skip + limitNum);
+
+    res.json({
+      data: paginatedCustomers,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch customers stats:', error);
+    res.status(500).json({ error: 'Failed to fetch customers stats' });
   }
 };

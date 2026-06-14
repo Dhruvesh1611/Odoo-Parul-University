@@ -1,10 +1,11 @@
 "use client";
 
+import { memo } from "react";
 import { useCartStore } from "@/stores/cart-store";
 import { Plus } from "lucide-react";
 import Image from "next/image";
 
-export default function ProductCard({ product }) {
+export default memo(function ProductCard({ product }) {
   const addItem = useCartStore((state) => state.addItem);
 
   return (
@@ -31,4 +32,4 @@ export default function ProductCard({ product }) {
       </div>
     </div>
   );
-}
+})

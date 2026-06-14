@@ -49,10 +49,24 @@ async function ensureTenantAccess(actor) {
   return shop;
 }
 
-async function listUsers(actor) {
+async function listUsers(actor, page, limit, search) {
   await ensureTenantAccess(actor);
-  const users = await userRepository.listByShop(actor.shopId);
-  return users.map(toPublicUser);
+  const result = await userRepository.listByShop(actor.shopId, page, limit, search);
+  
+  if (page || limit) {
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    return {
+      data: result.data.map(toPublicUser),
+      pagination: {
+        total: result.total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(result.total / limitNum)
+      }
+    };
+  }
+  return result.data.map(toPublicUser);
 }
 
 async function getUserById(actor, id) {

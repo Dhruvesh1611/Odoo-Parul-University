@@ -70,6 +70,7 @@ model User {
   updatedAt   DateTime  @updatedAt
 
   @@index([shopId])
+  @@index([role])
 
   sessions  Session[]
   orders    Order[]
@@ -126,6 +127,8 @@ model Table {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([floorId])
 }
 
 model Category {
@@ -154,6 +157,8 @@ model Product {
   
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@index([categoryId])
 }
 
 model Variant {
@@ -165,6 +170,8 @@ model Variant {
   orderItems OrderItem[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([productId])
 }
 
 model Order {
@@ -201,6 +208,15 @@ model Order {
   
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  @@index([tableId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([customerEmail])
+  @@index([customerMobile])
 }
 
 model OrderItem {
@@ -226,6 +242,10 @@ model OrderItem {
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantId])
 }
 
 model Payment {
@@ -240,6 +260,10 @@ model Payment {
   
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Settings {

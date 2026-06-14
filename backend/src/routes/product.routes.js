@@ -6,6 +6,7 @@ const { authenticateToken, requireRole } = require('../middlewares/auth.middlewa
 
 // Public: Read products and categories (needed by POS)
 router.get('/categories', authenticateToken, productController.getCategories);
+router.get('/stats', authenticateToken, productController.getProductsStats);
 router.get('/', authenticateToken, productController.getProducts);
 
 // Admin only: CUD operations
