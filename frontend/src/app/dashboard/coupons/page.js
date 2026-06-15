@@ -60,6 +60,12 @@ export default function CouponsDashboardPage() {
 
   const handleCreateCoupon = async (e) => {
     e.preventDefault();
+    const discountValue = Number(newCoupon.discount);
+    if (newCoupon.type === 'PERCENTAGE' && discountValue > 100) {
+      showAlert("Percentage discount cannot be greater than 100.", "Create Coupon", "error");
+      return;
+    }
+
     setSaving(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
@@ -290,8 +296,12 @@ export default function CouponsDashboardPage() {
                     placeholder="10"
                     value={newCoupon.discount}
                     onChange={e => setNewCoupon({ ...newCoupon, discount: e.target.value })}
+                    max={newCoupon.type === 'PERCENTAGE' ? 100 : undefined}
                     className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#1A4D2E] outline-none font-bold disabled:opacity-50"
                   />
+                  {newCoupon.type === 'PERCENTAGE' && (
+                    <p className="mt-1 text-xs text-gray-500">For percentage coupons, maximum allowed value is 100.</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1 uppercase tracking-wider">Discount Type *</label>

@@ -5,6 +5,8 @@ import {
   Search,
   Plus,
   Edit2,
+  Pause,
+  Play,
   Trash2,
   X,
   Coffee,
@@ -19,7 +21,7 @@ import CoffeeLoader from "@/components/ui/CoffeeLoader";
 import { usePopup } from "@/context/PopupContext";
 
 export default function ProductsPage() {
-  const { showToast, showAlert, showConfirm } = usePopup();
+  const { showToast, showAlert } = usePopup();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -532,38 +534,34 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDeleteProduct = async (id) => {
-    const confirmed = await showConfirm('Are you sure you want to delete this product?', 'Delete Product');
-    if (!confirmed) return;
-
-    setSaving(true);
+  const handleToggleProductAvailability = async (product) => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api';
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`${API_URL}/products/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await fetch(`${API_URL}/products/${product.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isAvailable: !product.isAvailable })
       });
 
       if (response.ok) {
-        showToast("Product deleted successfully!", "success");
+        showToast(
+          product.isAvailable ? 'Product paused successfully!' : 'Product resumed successfully!',
+          'success'
+        );
         fetchProducts();
         fetchStats();
       } else {
         const err = await response.json();
-        console.error("Backend Error:", err);
-        showAlert(
-          `Failed to delete product: ${formatErrorMessage(err)}\n\n(Note: You cannot delete products that are part of existing orders.)`,
-          "Delete Product",
-          "error"
-        );
+        showAlert(`Failed to update product: ${err.error || 'Unknown error'}`, 'Product Status', 'error');
       }
     } catch (error) {
-      console.error('Failed to delete product:', error);
-      showAlert(`Failed to delete product: ${formatErrorMessage(error)}`, "Delete Product", "error");
-    } finally {
-      setSaving(false);
+      console.error('Failed to update product availability:', error);
+      showAlert(`Failed to update product: ${error.message}`, 'Product Status', 'error');
     }
   };
 
@@ -887,7 +885,7 @@ export default function ProductsPage() {
                       ₹{Number(product.price).toFixed(2)}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
                         setEditingProduct(product);
@@ -898,10 +896,15 @@ export default function ProductsPage() {
                       <Edit2 className="h-4 w-4 text-[#5F6F65]" />
                     </button>
                     <button
-                      onClick={() => handleDeleteProduct(product.id)}
-                      className="p-2 rounded-2xl border border-[#F3D7D2] hover:bg-red-50 transition"
+                      onClick={() => handleToggleProductAvailability(product)}
+                      className="p-2 rounded-2xl border border-[#D9E7DD] hover:bg-[#F0F7F2] transition"
+                      title={product.isAvailable ? 'Pause product' : 'Resume product'}
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      {product.isAvailable ? (
+                        <Pause className="h-4 w-4 text-[#1A4D2E]" />
+                      ) : (
+                        <Play className="h-4 w-4 text-[#1A4D2E]" />
+                      )}
                     </button>
                   </div>
                 </div>

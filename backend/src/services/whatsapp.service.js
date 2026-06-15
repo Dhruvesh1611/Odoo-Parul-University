@@ -1,3 +1,4 @@
+const path = require('path');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 
@@ -6,10 +7,19 @@ let isReady = false;
 
 exports.initialize = () => {
   try {
+    const authDataPath = path.resolve(
+      process.env.WWEBJS_AUTH_PATH || path.join(__dirname, '../../.wwebjs_auth')
+    );
     const puppeteerOptions = {
       headless: true,
+      ignoreHTTPSErrors: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     };
+
+    puppeteerOptions.args.push(
+      '--ignore-certificate-errors',
+      '--allow-insecure-localhost'
+    );
 
     if (process.env.CHROME_PATH) {
       puppeteerOptions.executablePath = process.env.CHROME_PATH;
@@ -39,7 +49,7 @@ exports.initialize = () => {
 
     client = new Client({
       authStrategy: new LocalAuth({
-        dataPath: './.wwebjs_auth'
+        dataPath: authDataPath
       }),
       puppeteer: puppeteerOptions
     });
@@ -80,6 +90,22 @@ exports.isReady = () => {
                     !twilioSid.includes('placeholder') && 
                     !twilioToken.includes('placeholder');
   return isReady || hasTwilio;
+};
+
+exports.shutdown = async () => {
+  if (!client) {
+    isReady = false;
+    return;
+  }
+
+  try {
+    await client.destroy();
+  } catch (error) {
+    console.warn('⚠️ Failed to destroy WhatsApp client cleanly:', error.message);
+  } finally {
+    client = null;
+    isReady = false;
+  }
 };
 
 exports.sendReceipt = async (phone, message) => {
