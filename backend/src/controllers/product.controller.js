@@ -1,6 +1,8 @@
 // backend/src/controllers/product.controller.js
 const prisma = require('../lib/prisma');
 const { z } = require('zod');
+const { isPrismaDatabaseUnavailable } = require('../lib/prisma-errors');
+const { showcaseCategories, showcaseProducts, showcaseStats } = require('../lib/showcase-data');
 
 // Validation Schemas
 const productSchema = z.object({
@@ -41,6 +43,9 @@ exports.getCategories = async (req, res) => {
         });
         res.json(categories);
     } catch (error) {
+        if (isPrismaDatabaseUnavailable(error)) {
+            return res.json(showcaseCategories);
+        }
         res.status(500).json({ error: error.message });
     }
 };
@@ -75,6 +80,9 @@ exports.getProductsStats = async (req, res) => {
             avgPrice: Number(avgPriceData._avg.price || 0)
         });
     } catch (error) {
+        if (isPrismaDatabaseUnavailable(error)) {
+            return res.json(showcaseStats);
+        }
         res.status(500).json({ error: error.message });
     }
 };
@@ -154,6 +162,41 @@ exports.getProducts = async (req, res) => {
         });
         res.json(products);
     } catch (error) {
+        if (isPrismaDatabaseUnavailable(error)) {
+            const { categoryId, page, limit, search } = req.query;
+            let products = showcaseProducts;
+
+            if (categoryId && categoryId !== 'all') {
+                products = products.filter((product) => product.category?.id === categoryId || product.category?.name === categoryId);
+            }
+
+            if (search) {
+                const normalizedSearch = String(search).toLowerCase();
+                products = products.filter((product) =>
+                    product.name.toLowerCase().includes(normalizedSearch) ||
+                    (product.description || '').toLowerCase().includes(normalizedSearch)
+                );
+            }
+
+            if (page || limit) {
+                const pageNum = parseInt(page) || 1;
+                const limitNum = parseInt(limit) || 20;
+                const skip = (pageNum - 1) * limitNum;
+                const pagedProducts = products.slice(skip, skip + limitNum);
+
+                return res.json({
+                    data: pagedProducts,
+                    pagination: {
+                        total: products.length,
+                        page: pageNum,
+                        limit: limitNum,
+                        totalPages: Math.ceil(products.length / limitNum)
+                    }
+                });
+            }
+
+            return res.json(products);
+        }
         res.status(500).json({ error: error.message });
     }
 };
@@ -204,19 +247,21 @@ exports.deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Delete variants first to satisfy Foreign Key constraints
-        // Using a transaction to ensure atomicity
         await prisma.$transaction([
             prisma.variant.deleteMany({ where: { productId: id } }),
             prisma.product.delete({ where: { id } })
         ]);
 
-        res.json({ message: "Product and its variants deleted successfully" });
+        res.json({ message: "Product deleted successfully" });
     } catch (error) {
-        // Check for specific Prisma error codes if needed, but the generic message covers it
-        if (error.code === 'P2003') { // Foreign key constraint failed
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: "Product not found." });
+        }
+
+        if (error.code === 'P2003') {
             return res.status(400).json({ error: "Cannot delete product because it is part of existing orders." });
         }
+
         res.status(500).json({ error: error.message });
     }
 };

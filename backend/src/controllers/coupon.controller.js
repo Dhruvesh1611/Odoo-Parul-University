@@ -7,6 +7,14 @@ const couponSchema = z.object({
   discount: z.preprocess((val) => Number(val), z.number().positive()),
   type: z.enum(['PERCENTAGE', 'FIXED']).default('PERCENTAGE'),
   expiresAt: z.string().optional().nullable().transform(val => val ? new Date(val) : null)
+}).superRefine((data, ctx) => {
+  if (data.type === 'PERCENTAGE' && data.discount > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['discount'],
+      message: 'Percentage discount cannot be greater than 100.'
+    });
+  }
 });
 
 exports.getCoupons = async (req, res) => {

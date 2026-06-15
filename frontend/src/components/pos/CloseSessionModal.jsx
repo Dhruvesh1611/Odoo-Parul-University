@@ -48,7 +48,7 @@ export default function CloseSessionModal({ session, onClose, onConfirm }) {
           <div className="bg-beige-100 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-coffee-600/60">Terminal</span>
-              <span className="font-semibold text-coffee-800">{session.terminal?.name || 'N/A'}</span>
+              <span className="font-semibold text-coffee-800">{session.terminal?.name || session.terminalId || 'N/A'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-coffee-600/60">Started At</span>
